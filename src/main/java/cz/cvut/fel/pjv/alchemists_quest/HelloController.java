@@ -12,9 +12,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 
 import java.net.URL;
-import java.util.HashSet;
-import java.util.ResourceBundle;
-import java.util.Set;
+import java.util.*;
 
 public class HelloController implements Initializable {
 
@@ -32,7 +30,12 @@ public class HelloController implements Initializable {
 
     private GraphicsContext gc;
     private Player player;
-    private Platform platform;
+    private List<Platform> platforms = new ArrayList<>();
+    private List<Item> items = new ArrayList<>();
+    private List<String> inventoryItems = new ArrayList<>();
+
+
+
 
     private Set<KeyCode> activeKeys = new HashSet<>();
 
@@ -73,7 +76,13 @@ public class HelloController implements Initializable {
         double canvasHeight = gameCanvas.getHeight();
 
         player = new Player(100, canvasHeight - PLAYER_HEIGHT - PLATFORM_HEIGHT - 50, PLAYER_WIDTH, PLAYER_HEIGHT);
-        platform = new Platform(50, canvasHeight - PLATFORM_HEIGHT - 20, PLATFORM_WIDTH, PLATFORM_HEIGHT);
+        platforms.add(new Platform(50, canvasHeight - PLATFORM_HEIGHT - 20, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+
+        platforms.add(new Platform(200, 400, 150, 20));
+        platforms.add(new Platform(500, 300, 200, 20));
+
+        items.add(new Item(100, 100, "wood"));
+
 
 
         //game cycle
@@ -124,11 +133,43 @@ public class HelloController implements Initializable {
         }
     }
 
-    private void update(double deltaTime) {
-        // Передаем размеры канвас в метод обновления игрока для проверки бордера
-        player.update(deltaTime, platform, gameCanvas.getWidth(), gameCanvas.getHeight());
+    private void updateInventoryView() {
+        inventoryBox.getChildren().clear(); // Очищаем старое содержимое
 
+        for (String itemType : inventoryItems) {
+            Label itemLabel = new Label();
+
+            switch (itemType) {
+                case "wood":
+                    itemLabel.setText("🪵"); // Можно заменить на картинку потом
+                    break;
+                // Тут можно добавить другие предметы типа "stone", "metal" и т.д.
+                default:
+                    itemLabel.setText("❓"); // неизвестный предмет
+                    break;
+            }
+
+            inventoryBox.getChildren().add(itemLabel);
+        }
     }
+
+
+    private void update(double deltaTime) {
+        // Обновляем игрока, передавая все платформы
+        player.update(deltaTime, platforms, gameCanvas.getWidth(), gameCanvas.getHeight());
+
+        // Проверяем пересечения с предметами
+        Iterator<Item> iterator = items.iterator();
+        while (iterator.hasNext()) {
+            Item item = iterator.next();
+            if (item.intersects(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                inventoryItems.add(item.getType()); // Добавляем в инвентарь
+                updateInventoryView();              // Обновляем визуально HBox инвентаря
+                iterator.remove();                  // Убираем предмет с поля
+            }
+        }
+    }
+
 
     private void render() {
         // Рендер Canvas
@@ -137,10 +178,19 @@ public class HelloController implements Initializable {
 
         // Рендер платформы
         gc.setFill(Color.DARKGREEN);
-        gc.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
+        for (Platform platform : platforms) {
+            gc.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
+        }
+
 
         // Рендер игрока
         gc.setFill(Color.ORANGE);
         gc.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
+        // Рендер предметов
+        for (Item item : items) {
+            item.render(gc);
+        }
+
     }
 }
