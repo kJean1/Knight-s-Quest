@@ -1,16 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
+<?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.Pane?>
 
-<?import javafx.scene.control.Button?>
-<VBox alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController">
-  <padding>
-    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
-  </padding>
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController"
+            prefHeight="650.0" prefWidth="800.0">
 
-  <Label fx:id="welcomeText"/>
-  <Button text="Hello!" onAction="#onHelloButtonClick"/>
-</VBox>
+    <top>
+        <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
+            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft"/>
+        </VBox>
+    </top>
+
+    <center>
+        <StackPane>
+            <Canvas fx:id="gameCanvas" width="800.0" height="600.0" />
+            <GridPane fx:id="craftingGrid" visible="false" hgap="5" vgap="5">
+                <!-- 3x3 крафт-ячейки -->
+                <children>
+                    <Pane GridPane.rowIndex="0" GridPane.columnIndex="0" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="0" GridPane.columnIndex="1" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="0" GridPane.columnIndex="2" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+
+                    <Pane GridPane.rowIndex="1" GridPane.columnIndex="0" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="1" GridPane.columnIndex="1" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="1" GridPane.columnIndex="2" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+
+                    <Pane GridPane.rowIndex="2" GridPane.columnIndex="0" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="2" GridPane.columnIndex="1" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                    <Pane GridPane.rowIndex="2" GridPane.columnIndex="2" prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+                </children>
+            </GridPane>
+        </StackPane>
+    </center>
+
+    <bottom>
+        <HBox fx:id="inventoryBox" spacing="10" alignment="CENTER" prefHeight="50" prefWidth="800" style="-fx-padding: 5;">
+            <Pane prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+            <Pane prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+            <Pane prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+            <Pane prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+            <Pane prefHeight="50" prefWidth="50" style="-fx-border-color: black;"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
