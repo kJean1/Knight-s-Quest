@@ -8,14 +8,13 @@ public class Item {
     private double y;
     private String type;
     private static Image woodImage;
+    private static Image stoneImage;
 
     static {
-        try {
-            woodImage = new Image(Item.class.getResourceAsStream("/wood.png"));
-        } catch (Exception e) {
-            System.err.println("Не удалось загрузить wood.png: " + e.getMessage());
-        }
+        woodImage = new Image(Item.class.getResourceAsStream("/wood.png"));
+        stoneImage = new Image(Item.class.getResourceAsStream("/stone.png"));
     }
+
 
     public Item(double x, double y, String type) {
         this.x = x;
@@ -30,11 +29,17 @@ public class Item {
                 playerY + playerHeight > y);
     }
 
-    public void render(GraphicsContext gc) {
-        if ("wood".equals(type)) {
-            gc.drawImage(woodImage, x, y, 30, 30);
+    public void render(GraphicsContext gc, double cameraX) {
+        switch (type)
+        {
+            case "wood":
+                gc.drawImage(woodImage, x - cameraX, y, 30, 30);
+                break;
+            case "stone":
+                gc.drawImage(stoneImage, x - cameraX, y, 60, 60);
+                break;
         }
-        // Можно добавить другие типы предметов
+
     }
 
     public String getType() {

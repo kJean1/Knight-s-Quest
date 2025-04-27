@@ -15,6 +15,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.layout.StackPane;
+import javafx.scene.text.Font;
+
 
 import java.net.URL;
 import java.util.*;
@@ -40,7 +43,7 @@ public class HelloController implements Initializable {
     private Player player;
     private List<Platform> platforms = new ArrayList<>();
     private List<Item> items = new ArrayList<>();
-    private List<String> inventoryItems = new ArrayList<>();
+    private Map<String, Integer> inventoryItems = new HashMap<>();
     private Set<KeyCode> activeKeys = new HashSet<>();
     private long lastUpdate = 0;
 
@@ -48,6 +51,35 @@ public class HelloController implements Initializable {
     private static final int PLAYER_HEIGHT = 60;
     private static final int PLATFORM_WIDTH = 200;
     private static final int PLATFORM_HEIGHT = 20;
+    private static final int MAX_STACK_SIZE = 16;
+
+
+    private double cameraX = 0;
+    private double worldWidth = 2000;
+
+    private void initializeInventory() {
+        inventoryBox.getChildren().clear();
+        for (int i = 0; i < 5; i++) {
+            StackPane slot = new StackPane();
+
+            ImageView imageView = new ImageView(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
+            imageView.setFitWidth(50);
+            imageView.setFitHeight(50);
+
+            Label countLabel = new Label();
+            countLabel.setFont(new Font(14));
+            countLabel.setTextFill(Color.WHITE);
+            countLabel.setStyle("-fx-background-color: black; -fx-padding: 2px;");
+            countLabel.setVisible(false);
+
+            StackPane.setAlignment(countLabel, javafx.geometry.Pos.BOTTOM_RIGHT);
+
+            slot.getChildren().addAll(imageView, countLabel);
+            slot.setUserData("empty");
+            inventoryBox.getChildren().add(slot);
+        }
+    }
+
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -65,15 +97,7 @@ public class HelloController implements Initializable {
 
         gc = gameCanvas.getGraphicsContext2D();
 
-        // Установить пустую картинку для всех слотов
-        for (Node node : inventoryBox.getChildren()) {
-            if (node instanceof ImageView) {
-                ImageView slot = (ImageView) node;
-                slot.setImage(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
-                slot.setFitWidth(50);
-                slot.setFitHeight(50);
-            }
-        }
+        initializeInventory();
 
         gameCanvas.setFocusTraversable(true);
         gameCanvas.requestFocus();
@@ -87,7 +111,8 @@ public class HelloController implements Initializable {
         platforms.add(new Platform(200, 400, 150, 20));
         platforms.add(new Platform(500, 300, 200, 20));
 
-        items.add(new Item(100, 100, "wood"));
+        items.add(new Item(50, 100, "wood"));
+        items.add(new Item(150, 180, "stone"));
 
         AnimationTimer gameLoop = new AnimationTimer() {
             @Override
@@ -126,56 +151,85 @@ public class HelloController implements Initializable {
         }
     }
 
-    private void updateInventoryView() {
+    private void updateInventoryView(String newItemType) {
         for (Node node : inventoryBox.getChildren()) {
-            if (node instanceof ImageView) {
-                ImageView slot = (ImageView) node;
-                if (slot.getImage().getUrl().contains("empty_slot.png")) {
-                    String newItemType = inventoryItems.get(inventoryItems.size() - 1);
+            if (node instanceof StackPane) {
+                StackPane slot = (StackPane) node;
+                ImageView imageView = (ImageView) slot.getChildren().get(0);
+                Label countLabel = (Label) slot.getChildren().get(1);
+
+                Object userData = slot.getUserData();
+
+                if (newItemType.equals(userData)) {
+                    int currentCount = Integer.parseInt(countLabel.getText());
+                    if (currentCount < MAX_STACK_SIZE) {
+                        currentCount++;
+                        countLabel.setText(String.valueOf(currentCount));
+                    } else {
+                        infoLabel.setText("Player is not that strong!");
+                    }
+                    return;
+                } else if (userData.equals("empty")) {
                     Image image = null;
                     switch (newItemType) {
                         case "wood":
                             image = new Image(getClass().getResource("/wood.png").toExternalForm());
                             break;
-                        // другие предметы
+                        case "stone":
+                            image = new Image(getClass().getResource("/stone.png").toExternalForm());
+                            break;
                     }
+
                     if (image != null) {
-                        slot.setImage(image);
+                        imageView.setImage(image);
+                        slot.setUserData(newItemType);
+                        countLabel.setText("1");
+                        countLabel.setVisible(true);
                     }
-                    break;
+                    return;
                 }
             }
         }
     }
 
+
     private void update(double deltaTime) {
-        player.update(deltaTime, platforms, gameCanvas.getWidth(), gameCanvas.getHeight());
+        player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight());
+
+        double canvasCenter = gameCanvas.getWidth() / 2;
+        cameraX = player.getX() - canvasCenter + player.getWidth() / 2;
+
+        cameraX = Math.max(0, Math.min(cameraX, worldWidth - gameCanvas.getWidth()));
 
         Iterator<Item> iterator = items.iterator();
         while (iterator.hasNext()) {
             Item item = iterator.next();
             if (item.intersects(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
-                inventoryItems.add(item.getType());
-                updateInventoryView();
+                inventoryItems.put(item.getType(), inventoryItems.getOrDefault(item.getType(), 0) + 1);
+                updateInventoryView(item.getType());
                 iterator.remove();
             }
         }
     }
 
+
     private void render() {
+        //background
         gc.setFill(Color.LIGHTBLUE);
         gc.fillRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
 
+        //platform
         gc.setFill(Color.DARKGREEN);
         for (Platform platform : platforms) {
-            gc.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
+            gc.fillRect(platform.getX() - cameraX, platform.getY(), platform.getWidth(), platform.getHeight());
         }
 
+        //player
         gc.setFill(Color.ORANGE);
-        gc.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+        gc.fillRect(player.getX() - cameraX, player.getY(), player.getWidth(), player.getHeight());
 
         for (Item item : items) {
-            item.render(gc);
+            item.render(gc, cameraX);
         }
     }
 }

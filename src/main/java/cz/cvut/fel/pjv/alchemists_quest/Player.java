@@ -8,7 +8,7 @@ public class Player {
     private double velocityX = 0;
     private double velocityY = 0;
     private double gravity = 800;
-    private double moveSpeed = 200;
+    private double moveSpeed = 400;
     private double jumpStrength = -600;
     private boolean onGround = false;
 
@@ -20,10 +20,8 @@ public class Player {
     }
 
     public void update(double deltaTime, List<Platform> platforms, double canvasWidth, double canvasHeight) {
-        // Применяем гравитацию
         velocityY += gravity * deltaTime;
 
-        // Обновляем позицию по X
         double nextX = x + velocityX * deltaTime;
         if (nextX < 0) {
             nextX = 0;
@@ -34,20 +32,16 @@ public class Player {
         }
         x = nextX;
 
-        // Предварительное обновление позиции по Y
         double nextY = y + velocityY * deltaTime;
 
-        // По умолчанию считаем, что в воздухе
         onGround = false;
 
-        // Проверяем столкновения со всеми платформами
         for (Platform platform : platforms) {
             if (checkPlatformCollision(platform, nextY)) {
-                break; // Если встали на платформу, прекращаем проверку
+                break;
             }
         }
 
-        // Если не на земле, обновляем положение
         if (!onGround) {
             y = nextY;
         }
