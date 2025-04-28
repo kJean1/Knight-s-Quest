@@ -46,6 +46,9 @@ public class HelloController implements Initializable {
     private Map<String, Integer> inventoryItems = new HashMap<>();
     private Set<KeyCode> activeKeys = new HashSet<>();
     private long lastUpdate = 0;
+    private List<NPC> npcs = new ArrayList<>();
+    private boolean showDialog = false;
+
 
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
@@ -90,6 +93,18 @@ public class HelloController implements Initializable {
                     if (event.getCode() == KeyCode.C) {
                         craftingBox.setVisible(!craftingBox.isVisible());
                     }
+                    if (event.getCode() == KeyCode.E) {
+                        boolean nearAnyNPC = false;
+                        for (NPC npc : npcs) {
+                            if (npc.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                                nearAnyNPC = true;
+                                break;
+                            }
+                        }
+                        if (nearAnyNPC) {
+                            showDialog = !showDialog;
+                        }
+                    }
                 });
                 newScene.setOnKeyReleased(event -> activeKeys.remove(event.getCode()));
             }
@@ -105,9 +120,13 @@ public class HelloController implements Initializable {
         double canvasWidth = gameCanvas.getWidth();
         double canvasHeight = gameCanvas.getHeight();
 
+
+        //objects
+        npcs.add(new NPC(400, canvasHeight - PLAYER_HEIGHT - PLATFORM_HEIGHT - 50, 40, 60));
         player = new Player(100, canvasHeight - PLAYER_HEIGHT - PLATFORM_HEIGHT - 50, PLAYER_WIDTH, PLAYER_HEIGHT);
 
-        platforms.add(new Platform(50, canvasHeight - PLATFORM_HEIGHT - 20, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+//        platforms.add(new Platform(50, canvasHeight - PLATFORM_HEIGHT - 20, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+        platforms.add(new Platform(50, canvasHeight - PLATFORM_HEIGHT - 20, 1950, 20));
         platforms.add(new Platform(200, 400, 150, 20));
         platforms.add(new Platform(500, 300, 200, 20));
 
@@ -210,6 +229,18 @@ public class HelloController implements Initializable {
                 iterator.remove();
             }
         }
+        if (showDialog) {
+            boolean stillNearNPC = false;
+            for (NPC npc : npcs) {
+                if (npc.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                    stillNearNPC = true;
+                    break;
+                }
+            }
+            if (!stillNearNPC) {
+                showDialog = false; // закрываем диалог
+            }
+        }
     }
 
 
@@ -228,6 +259,19 @@ public class HelloController implements Initializable {
         gc.setFill(Color.ORANGE);
         gc.fillRect(player.getX() - cameraX, player.getY(), player.getWidth(), player.getHeight());
 
+        //npc
+        for (NPC npc : npcs) {
+            npc.render(gc, cameraX);
+        }
+        if (showDialog) {
+            gc.setFill(Color.rgb(0, 0, 0, 0.7));
+            gc.fillRect(200, 100, 400, 100);
+            gc.setFill(Color.WHITE);
+            gc.setFont(new Font(24));
+            gc.fillText("I can`t talk much yet(", 300, 160);
+        }
+
+        //items
         for (Item item : items) {
             item.render(gc, cameraX);
         }
