@@ -1,6 +1,7 @@
 package cz.cvut.fel.pjv.alchemists_quest;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import javafx.animation.AnimationTimer;
@@ -49,6 +50,8 @@ public class HelloController implements Initializable {
     private long lastUpdate = 0;
     private List<NPC> npcs = new ArrayList<>();
     private boolean showDialog = false;
+    private List<Bush> bushes = new ArrayList<>();
+
 
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
@@ -74,6 +77,15 @@ public class HelloController implements Initializable {
                                 break;
                             }
                         }
+                        for (Bush bush : bushes) {
+                            if (bush.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight()) && bush.hasBerry()) {
+                                bush.pickBerry();
+                                inventoryItems.put("berry", inventoryItems.getOrDefault("berry", 0) + 1);
+                                updateInventoryView("berry");
+                                break; //only 1 bush at once
+                            }
+                        }
+
                         if (nearAnyNPC) {
                             showDialog = !showDialog;
                         }
@@ -179,6 +191,15 @@ public class HelloController implements Initializable {
                     break;
                 }
             }
+            for (Bush bush : bushes) {
+                if (bush.hasBerry() && bush.intersects(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                    bush.pickBerry();
+                    inventoryItems.put("berry", inventoryItems.getOrDefault("berry", 0) + 1);
+                    updateInventoryView("berry");
+                    break;
+                }
+            }
+
             if (!stillNearNPC) {
                 showDialog = false;
             }
@@ -211,6 +232,9 @@ public class HelloController implements Initializable {
                             break;
                         case "stone":
                             image = new Image(getClass().getResource("/stone.png").toExternalForm());
+                            break;
+                        case "berry":
+                            image = new Image(getClass().getResource("/berry.png").toExternalForm());
                             break;
                     }
 
@@ -253,6 +277,11 @@ public class HelloController implements Initializable {
         for (Item item : items) {
             item.render(gc, cameraX);
         }
+
+        for (Bush bush : bushes) {
+            bush.render(gc, cameraX);
+        }
+
     }
 
     private void loadLevelFromJson(String filename) {
@@ -297,6 +326,16 @@ public class HelloController implements Initializable {
                         obj.get("type").getAsString()
                 ));
             }
+
+            JsonArray bushArray = json.getAsJsonArray("bushes");
+            for (JsonElement bElem : bushArray) {
+                JsonObject b = bElem.getAsJsonObject();
+                double x = b.get("x").getAsDouble();
+                double y = b.get("y").getAsDouble();
+                bushes.add(new Bush(x, y));
+            }
+
+
 
         } catch (Exception e) {
             e.printStackTrace();
