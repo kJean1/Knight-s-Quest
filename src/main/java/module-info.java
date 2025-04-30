@@ -1,7 +1,7 @@
 module cz.cvut.fel.pjv.alchemists_quest {
     requires javafx.controls;
     requires javafx.fxml;
-
+    requires com.google.gson;
 
     opens cz.cvut.fel.pjv.alchemists_quest to javafx.fxml;
     exports cz.cvut.fel.pjv.alchemists_quest;
