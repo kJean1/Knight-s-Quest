@@ -228,7 +228,7 @@ public class HelloController implements Initializable {
         gc.drawImage(winImage, imageX, imageY);
     }
     private void restartGame() {
-        gameWon = !gameWon;
+        gameWon = false;
         infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interract");
         inventoryItems.clear();
         initializeInventory();
