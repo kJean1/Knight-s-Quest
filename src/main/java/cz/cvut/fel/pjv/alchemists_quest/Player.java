@@ -19,6 +19,14 @@ public class Player {
         this.height = height;
     }
 
+    public void restart(double x, double y){
+        if (onGround == true)
+        {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
     public void update(double deltaTime, List<Platform> platforms, double canvasWidth, double canvasHeight) {
         velocityY += gravity * deltaTime;
 

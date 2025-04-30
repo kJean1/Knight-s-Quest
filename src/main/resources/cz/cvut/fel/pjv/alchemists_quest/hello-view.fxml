@@ -16,7 +16,7 @@
 
     <top>
         <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
-            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft"/>
+            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft, E to interract"/>
         </VBox>
     </top>
 

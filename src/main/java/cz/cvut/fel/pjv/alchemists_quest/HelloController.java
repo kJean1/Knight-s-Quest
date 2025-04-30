@@ -51,6 +51,8 @@ public class HelloController implements Initializable {
     private List<NPC> npcs = new ArrayList<>();
     private boolean showDialog = false;
     private List<Bush> bushes = new ArrayList<>();
+    private Castle castle;
+    private boolean gameWon = false;
 
 
     private static final int PLAYER_WIDTH = 40;
@@ -58,7 +60,7 @@ public class HelloController implements Initializable {
     private static final int MAX_STACK_SIZE = 16;
 
     private double cameraX = 0;
-    private double worldWidth = 2000;
+    private double worldWidth = 2500;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -89,6 +91,9 @@ public class HelloController implements Initializable {
                         if (nearAnyNPC) {
                             showDialog = !showDialog;
                         }
+                    }
+                    if (event.getCode() == KeyCode.ESCAPE) {
+                        restartGame();
                     }
                 });
                 newScene.setOnKeyReleased(event -> activeKeys.remove(event.getCode()));
@@ -183,6 +188,9 @@ public class HelloController implements Initializable {
             }
         }
 
+        if (castle != null && castle.intersects(player)) {
+            gameWon = true;
+        }
         if (showDialog) {
             boolean stillNearNPC = false;
             for (NPC npc : npcs) {
@@ -199,12 +207,36 @@ public class HelloController implements Initializable {
                     break;
                 }
             }
-
+            if (castle != null && castle.intersects(player)) {
+                gameWon = true;
+            }
             if (!stillNearNPC) {
                 showDialog = false;
             }
         }
     }
+    private void showVictoryScreen() {
+        gc.setFill(new Color(0, 0, 0, 0.7));
+        gc.fillRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
+        infoLabel.setText("Press ESC to restart");
+
+        Image winImage = new Image(getClass().getResourceAsStream("/win.png"));
+
+        double imageX = (gameCanvas.getWidth() - winImage.getWidth()) / 2;
+        double imageY = (gameCanvas.getHeight() - winImage.getHeight()) / 2;
+
+        gc.drawImage(winImage, imageX, imageY);
+    }
+    private void restartGame() {
+        gameWon = !gameWon;
+        infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interract");
+        inventoryItems.clear();
+        initializeInventory();
+        loadLevelFromJson("level1.json");
+        double canvasHeight = gameCanvas.getHeight();
+        player.restart(100, canvasHeight - PLAYER_HEIGHT - 50);
+    }
+
 
     private void updateInventoryView(String newItemType) {
         for (Node node : inventoryBox.getChildren()) {
@@ -281,7 +313,12 @@ public class HelloController implements Initializable {
         for (Bush bush : bushes) {
             bush.render(gc, cameraX);
         }
-
+        if (castle != null) {
+            castle.render(gc, cameraX);
+        }
+        if (gameWon) {
+            showVictoryScreen();
+        }
     }
 
     private void loadLevelFromJson(String filename) {
@@ -335,8 +372,12 @@ public class HelloController implements Initializable {
                 bushes.add(new Bush(x, y));
             }
 
-
-
+            if (json.has("castle")) {
+                JsonObject castleObj = json.getAsJsonObject("castle");
+                double cx = castleObj.get("x").getAsDouble();
+                double cy = castleObj.get("y").getAsDouble();
+                castle = new Castle(cx, cy);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
