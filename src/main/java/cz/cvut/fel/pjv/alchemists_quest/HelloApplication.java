@@ -25,8 +25,6 @@ public class HelloApplication extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(fxmlUrl);
         Parent root = fxmlLoader.load();
 
-        HelloController controller = fxmlLoader.getController();
-
         Scene scene = new Scene(root);
 
         stage.setTitle("Alchemist`s Quest");

@@ -172,7 +172,7 @@ public class HelloController implements Initializable {
     }
 
     private void update(double deltaTime) {
-        player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight());
+        player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight(), System.nanoTime());
 
         double canvasCenter = gameCanvas.getWidth() / 2;
         cameraX = player.getX() - canvasCenter + player.getWidth() / 2;
@@ -291,8 +291,7 @@ public class HelloController implements Initializable {
             gc.fillRect(platform.getX() - cameraX, platform.getY(), platform.getWidth(), platform.getHeight());
         }
 
-        gc.setFill(Color.ORANGE);
-        gc.fillRect(player.getX() - cameraX, player.getY(), player.getWidth(), player.getHeight());
+        player.render(gc, cameraX);
 
         for (NPC npc : npcs) {
             npc.render(gc, cameraX);
