@@ -1,30 +1,26 @@
 package cz.cvut.fel.pjv.alchemists_quest;
 
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
+import javafx.scene.image.Image;
 
 public class NPC {
-    private double x, y, width, height;
+    private double x, y;
+    private Image image;
 
-    public NPC(double x, double y, double width, double height) {
+    private static final double WIDTH = 40;
+    private static final double HEIGHT = 60;
+
+    public NPC(double x, double y, Image image) {
         this.x = x;
         this.y = y;
-        this.width = width;
-        this.height = height;
+        this.image = image;
     }
 
     public void render(GraphicsContext gc, double cameraX) {
-        gc.setFill(Color.PURPLE);
-        gc.fillRect(x - cameraX, y, width, height);
+        gc.drawImage(image, x - cameraX, y, WIDTH, HEIGHT);
     }
 
-    public boolean isNear(double playerX, double playerY, double playerWidth, double playerHeight) {
-        double dx = (x + width / 2) - (playerX + playerWidth / 2);
-        double dy = (y + height / 2) - (playerY + playerHeight / 2);
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        return distance < 100; // радиус взаимодействия
+    public boolean isNear(double px, double py, double pWidth, double pHeight) {
+        return Math.abs(px - x) < 50 && Math.abs(py - y) < 50;
     }
-
-    public double getX() { return x; }
-    public double getY() { return y; }
 }

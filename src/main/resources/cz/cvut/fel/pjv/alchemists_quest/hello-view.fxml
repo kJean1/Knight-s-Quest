@@ -5,66 +5,82 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.image.Image?>
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController"
             prefHeight="650.0" prefWidth="800.0">
 
     <top>
         <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
-            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft, E to interract"/>
+            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft, E to interact"/>
         </VBox>
     </top>
 
     <center>
         <StackPane>
             <Canvas fx:id="gameCanvas" width="800.0" height="600.0" />
+            <!-- Диалоговое окно -->
+            <VBox fx:id="dialogBox" visible="false" alignment="CENTER" spacing="10" style="-fx-background-color: rgba(0, 0, 0, 0.7); -fx-padding: 20;">
+                <Label fx:id="dialogLabel" text="NPC: How can I help you?" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
 
-            <VBox fx:id="craftingBox" visible="false" spacing="10" style="-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;" alignment="CENTER">
-                <Label text="Crafting" style="-fx-font-size: 18px; -fx-text-fill: white;"/>
-
-                <GridPane fx:id="craftingGrid" hgap="5" vgap="5" alignment="CENTER">
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="0" GridPane.columnIndex="0">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="0" GridPane.columnIndex="1">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="0" GridPane.columnIndex="2">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="1" GridPane.columnIndex="0">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="1" GridPane.columnIndex="1">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="1" GridPane.columnIndex="2">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="2" GridPane.columnIndex="0">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="2" GridPane.columnIndex="1">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                    <StackPane style="-fx-border-color: white; -fx-background-color: rgba(255,255,255,0.1);" GridPane.rowIndex="2" GridPane.columnIndex="2">
-                        <ImageView fitWidth="50" fitHeight="50"/>
-                    </StackPane>
-                </GridPane>
-
+                <!-- Кнопки для выбора действия -->
                 <HBox spacing="10" alignment="CENTER">
-                    <Button fx:id="craftButton" text="Craft"/>
-                    <Label fx:id="craftResultLabel" text="Result: None" style="-fx-text-fill: white;"/>
+                    <Button fx:id="talkButton" text="Talk" onAction="#handleTalk"/>
+                    <Button fx:id="tradeButton" text="Trade" onAction="#handleTrade"/>
                 </HBox>
             </VBox>
-
+            <VBox fx:id="tradeBox" visible="false" alignment="CENTER" spacing="16" style="-fx-background-color: rgba(40,40,40,0.9); -fx-padding: 24;">
+                <Label fx:id="dialogLabel1" text="Choose your trade:" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
+                <HBox alignment="CENTER" spacing="14" style="-fx-background-color: #222; -fx-background-radius: 8; -fx-padding: 10;" onMouseClicked="#handleTradeClick" userData="berryToBoots">
+                    <VBox alignment="CENTER">
+                        <HBox alignment="CENTER" spacing="2">
+                            <ImageView fitWidth="28" fitHeight="28">
+                                <image>
+                                    <Image url="@/berry.png"/>
+                                </image>
+                            </ImageView>
+                            <Label text="x2" style="-fx-text-fill: white;"/>
+                        </HBox>
+                    </VBox>
+                    <Label text="→" style="-fx-text-fill: white; -fx-font-size: 18px;"/>
+                    <ImageView fitWidth="28" fitHeight="28">
+                        <image>
+                            <Image url="@/boots.png"/>
+                        </image>
+                    </ImageView>
+                    <Label text="Boots" style="-fx-text-fill: white;"/>
+                </HBox>
+                <HBox alignment="CENTER" spacing="14" style="-fx-background-color: #222; -fx-background-radius: 8; -fx-padding: 10;" onMouseClicked="#handleTradeClick" userData="stoneWoodToSword">
+                    <HBox alignment="CENTER" spacing="2">
+                        <ImageView fitWidth="28" fitHeight="28">
+                            <image>
+                                <Image url="@/stone.png"/>
+                            </image>
+                        </ImageView>
+                        <Label text="x1" style="-fx-text-fill: white;"/>
+                    </HBox>
+                    <HBox alignment="CENTER" spacing="2">
+                        <ImageView fitWidth="28" fitHeight="28">
+                            <image>
+                                <Image url="@/wood.png"/>
+                            </image>
+                        </ImageView>
+                        <Label text="x1" style="-fx-text-fill: white;"/>
+                    </HBox>
+                    <Label text="→" style="-fx-text-fill: white; -fx-font-size: 18px;"/>
+                    <ImageView fitWidth="28" fitHeight="28">
+                        <image>
+                            <Image url="@/sword.png"/>
+                        </image>
+                    </ImageView>
+                    <Label text="Sword" style="-fx-text-fill: white;"/>
+                </HBox>
+                <Button text="Back" onAction="#backToMenu"/>
+            </VBox>
         </StackPane>
     </center>
 
@@ -77,5 +93,4 @@
             <ImageView fitWidth="50" fitHeight="50"/>
         </HBox>
     </bottom>
-
 </BorderPane>

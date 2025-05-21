@@ -5,19 +5,21 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import javafx.animation.AnimationTimer;
+import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.util.Duration;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,27 +35,27 @@ public class HelloController implements Initializable {
     @FXML
     private HBox inventoryBox;
     @FXML
-    private GridPane craftingGrid;
+    private VBox dialogBox;
     @FXML
-    private VBox craftingBox;
+    private Label dialogLabel;
     @FXML
-    private Button craftButton;
+    private VBox tradeBox;
     @FXML
-    private Label craftResultLabel;
+    private Label dialogLabel1;
 
     private GraphicsContext gc;
     private Player player;
-    private List<Platform> platforms = new ArrayList<>();
-    private List<Item> items = new ArrayList<>();
-    private Map<String, Integer> inventoryItems = new HashMap<>();
-    private Set<KeyCode> activeKeys = new HashSet<>();
+    private final List<Platform> platforms = new ArrayList<>();
+    private final List<Item> items = new ArrayList<>();
+    private final Map<String, Integer> inventoryItems = new HashMap<>();
+    private final Set<KeyCode> activeKeys = new HashSet<>();
     private long lastUpdate = 0;
-    private List<NPC> npcs = new ArrayList<>();
+    private final List<NPC> npcs = new ArrayList<>();
     private boolean showDialog = false;
-    private List<Bush> bushes = new ArrayList<>();
+    private final List<Bush> bushes = new ArrayList<>();
     private Castle castle;
     private boolean gameWon = false;
-
+    private boolean isDialogOpen = false;
 
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
@@ -62,15 +64,22 @@ public class HelloController implements Initializable {
     private double cameraX = 0;
     private double worldWidth = 2500;
 
+    private void shake(Node node) {
+        TranslateTransition tt = new TranslateTransition(Duration.millis(70), node);
+        tt.setFromX(0);
+        tt.setByX(10);
+        tt.setCycleCount(6);
+        tt.setAutoReverse(true);
+        tt.setOnFinished(e -> node.setTranslateX(0)); // Вернуть на место
+        tt.play();
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         gameCanvas.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.setOnKeyPressed(event -> {
                     activeKeys.add(event.getCode());
-                    if (event.getCode() == KeyCode.C) {
-                        craftingBox.setVisible(!craftingBox.isVisible());
-                    }
                     if (event.getCode() == KeyCode.E) {
                         boolean nearAnyNPC = false;
                         for (NPC npc : npcs) {
@@ -84,12 +93,16 @@ public class HelloController implements Initializable {
                                 bush.pickBerry();
                                 inventoryItems.put("berry", inventoryItems.getOrDefault("berry", 0) + 1);
                                 updateInventoryView("berry");
-                                break; //only 1 bush at once
+                                break;
                             }
                         }
-
-                        if (nearAnyNPC) {
-                            showDialog = !showDialog;
+                        if(isDialogOpen)
+                        {
+                            closeDialog();
+                        }
+                        else if(nearAnyNPC)
+                        {
+                            openDialog();
                         }
                     }
                     if (event.getCode() == KeyCode.ESCAPE) {
@@ -130,6 +143,94 @@ public class HelloController implements Initializable {
         };
         gameLoop.start();
     }
+
+    @FXML
+    private void handleTalk() {
+        dialogLabel.setText("To complete the level u have to reach the castle!");
+    }
+    @FXML
+    private void handleTrade() {
+        tradeBox.setVisible(true);
+        dialogBox.setVisible(false);
+    }
+    @FXML
+    private void handleTradeClick(MouseEvent event) {
+        Node source = (Node) event.getSource();
+        String tradeType = (String) source.getUserData();
+        tradeItems(tradeType);
+    }
+
+    @FXML
+    private void backToMenu() {
+        tradeBox.setVisible(false);
+        dialogBox.setVisible(true);
+    }
+
+    private void openDialog() {
+        isDialogOpen = true;
+        dialogBox.setVisible(true);
+        dialogLabel.setText("NPC: How can I help you?");
+    }
+
+    private void closeDialog() {
+        isDialogOpen = false;
+        dialogBox.setVisible(false);
+    }
+
+    private void tradeItems(String tradeType) {
+        switch (tradeType) {
+            case "berryToBoots":
+                int berryCount = inventoryItems.getOrDefault("berry", 0);
+                if (berryCount >= 2) {
+                    inventoryItems.put("berry", berryCount - 2);
+                    updateInventoryViewAfterRemoval("berry", 2);
+                    inventoryItems.put("boots", inventoryItems.getOrDefault("boots", 0) + 1);
+                    updateInventoryView("boots");
+                    dialogLabel1.setText("You received Boots! Speed increased.");
+                } else {
+                    dialogLabel1.setText("Not enough berries for boots.");
+                    shake(tradeBox);
+                }
+                break;
+            case "stoneWoodToSword":
+                int stoneCount = inventoryItems.getOrDefault("stone", 0);
+                int woodCount = inventoryItems.getOrDefault("wood", 0);
+                if (stoneCount >= 1 && woodCount >= 1) {
+                    inventoryItems.put("stone", stoneCount - 1);
+                    updateInventoryViewAfterRemoval("stone", 1);
+                    inventoryItems.put("wood", woodCount - 1);
+                    updateInventoryViewAfterRemoval("wood", 1);
+                    inventoryItems.put("sword", inventoryItems.getOrDefault("sword", 0) + 1);
+                    updateInventoryView("sword");
+                    dialogLabel1.setText("You received a Sword!");
+                } else {
+                    dialogLabel1.setText("Not enough resources for sword.");
+                    shake(tradeBox);
+                }
+                break;
+        }
+    }
+
+    private void updateInventoryViewAfterRemoval(String itemType, int amount) {
+        for (Node node : inventoryBox.getChildren()) {
+            if (node instanceof StackPane slot && slot.getUserData().equals(itemType)) {
+                Label countLabel = (Label) slot.getChildren().get(1);
+                int currentCount = Integer.parseInt(countLabel.getText());
+                currentCount -= amount;
+                if (currentCount <= 0) {
+                    ImageView imageView = (ImageView) slot.getChildren().get(0);
+                    imageView.setImage(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
+                    slot.setUserData("empty");
+                    countLabel.setVisible(false);
+                    countLabel.setText("");
+                } else {
+                    countLabel.setText(String.valueOf(currentCount));
+                }
+                break;
+            }
+        }
+    }
+
 
     private void initializeInventory() {
         inventoryBox.getChildren().clear();
@@ -268,6 +369,12 @@ public class HelloController implements Initializable {
                         case "berry":
                             image = new Image(getClass().getResource("/berry.png").toExternalForm());
                             break;
+                        case "boots":
+                            image = new Image(getClass().getResource("/boots.png").toExternalForm());
+                            break;
+                        case "sword":
+                            image = new Image(getClass().getResource("/sword.png").toExternalForm());
+                            break;
                     }
 
                     if (image != null) {
@@ -295,14 +402,6 @@ public class HelloController implements Initializable {
 
         for (NPC npc : npcs) {
             npc.render(gc, cameraX);
-        }
-
-        if (showDialog) {
-            gc.setFill(Color.rgb(0, 0, 0, 0.7));
-            gc.fillRect(200, 100, 400, 100);
-            gc.setFill(Color.WHITE);
-            gc.setFont(new Font(24));
-            gc.fillText("I can`t talk much yet(", 300, 160);
         }
 
         for (Item item : items) {
@@ -345,12 +444,13 @@ public class HelloController implements Initializable {
                 ));
             }
 
-            JsonArray npcsArray = json.getAsJsonArray("npcs");
-            for (int i = 0; i < npcsArray.size(); i++) {
-                JsonObject obj = npcsArray.get(i).getAsJsonObject();
-                npcs.add(new NPC(
-                        obj.get("x").getAsDouble(),
-                        obj.get("y").getAsDouble(), 40, 60));
+            JsonArray npcArray = json.getAsJsonArray("npcs");
+            for (JsonElement nElem : npcArray) {
+                JsonObject obj = nElem.getAsJsonObject();
+                double x = obj.get("x").getAsDouble();
+                double y = obj.get("y").getAsDouble();
+                Image image = new Image(getClass().getResource("/npc.png").toExternalForm());
+                npcs.add(new NPC(x, y, image));
             }
 
             JsonArray itemsArray = json.getAsJsonArray("items");
@@ -370,7 +470,6 @@ public class HelloController implements Initializable {
                 double y = b.get("y").getAsDouble();
                 bushes.add(new Bush(x, y));
             }
-
             if (json.has("castle")) {
                 JsonObject castleObj = json.getAsJsonObject("castle");
                 double cx = castleObj.get("x").getAsDouble();
