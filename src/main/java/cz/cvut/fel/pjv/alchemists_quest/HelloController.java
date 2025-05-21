@@ -56,6 +56,7 @@ public class HelloController implements Initializable {
     private Castle castle;
     private boolean gameWon = false;
     private boolean isDialogOpen = false;
+    private final List<Enemy> enemies = new ArrayList<>();
 
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
@@ -274,6 +275,14 @@ public class HelloController implements Initializable {
 
     private void update(double deltaTime) {
         player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight(), System.nanoTime());
+        long now = System.nanoTime();
+        for (Enemy enemy : enemies) {
+            enemy.update(deltaTime, platforms, now);
+            if (enemy.collidesWith(player)) {
+                restartGame();
+                return; // Чтобы избежать повторных рестартов за один кадр
+            }
+        }
 
         double canvasCenter = gameCanvas.getWidth() / 2;
         cameraX = player.getX() - canvasCenter + player.getWidth() / 2;
@@ -330,7 +339,7 @@ public class HelloController implements Initializable {
     }
     private void restartGame() {
         gameWon = false;
-        infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interract");
+        infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interact");
         inventoryItems.clear();
         initializeInventory();
         loadLevelFromJson("level1.json");
@@ -403,13 +412,14 @@ public class HelloController implements Initializable {
         for (NPC npc : npcs) {
             npc.render(gc, cameraX);
         }
-
         for (Item item : items) {
             item.render(gc, cameraX);
         }
-
         for (Bush bush : bushes) {
             bush.render(gc, cameraX);
+        }
+        for (Enemy enemy : enemies) {
+            enemy.render(gc, cameraX);
         }
         if (castle != null) {
             castle.render(gc, cameraX);
@@ -422,16 +432,13 @@ public class HelloController implements Initializable {
     private void loadLevelFromJson(String filename) {
         try {
             InputStream is = getClass().getResourceAsStream("/levels/" + filename);
-            if (is == null) {
-                System.err.println("Level file not found: " + filename);
-                return;
-            }
 
             JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
 
             platforms.clear();
             npcs.clear();
             items.clear();
+            enemies.clear();
 
             JsonArray platformsArray = json.getAsJsonArray("platforms");
             for (int i = 0; i < platformsArray.size(); i++) {
@@ -470,6 +477,17 @@ public class HelloController implements Initializable {
                 double y = b.get("y").getAsDouble();
                 bushes.add(new Bush(x, y));
             }
+
+            JsonArray enemiesarray = json.getAsJsonArray("enemies");
+            for (JsonElement eElem : enemiesarray) {
+                JsonObject e = eElem.getAsJsonObject();
+                double x = e.get("x").getAsDouble();
+                double y = e.get("y").getAsDouble();
+                double width = e.get("width").getAsDouble();
+                double height = e.get("height").getAsDouble();
+                enemies.add(new Enemy(x, y, width, height));
+            }
+
             if (json.has("castle")) {
                 JsonObject castleObj = json.getAsJsonObject("castle");
                 double cx = castleObj.get("x").getAsDouble();
@@ -477,7 +495,7 @@ public class HelloController implements Initializable {
                 castle = new Castle(cx, cy);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error loading level file: " + filename);
         }
     }
 }
