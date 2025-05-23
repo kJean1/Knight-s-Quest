@@ -17,13 +17,15 @@ public class Player {
     private double jumpStrength = -600;
     private boolean onGround = false;
     private boolean movingLeft = false;
+    // --- добавим поле для boots ---
+    private boolean hasBoots = false;
 
-    private List<Image> idleFrames;  // Кадры для бездействия (стояния)
-    private List<Image> runFrames;   // Кадры для бега
+    private List<Image> idleFrames;
+    private List<Image> runFrames;
     private int currentFrameIndex = 0;
-    private boolean isIdle = true;   // Флаг для отслеживания, стоит ли игрок или двигается
+    private boolean isIdle = true;
     private long lastFrameTime = 0;
-    private long frameDuration = 100_000_000; // 100 ms
+    private long frameDuration = 100_000_000;
 
     public Player(double x, double y, double width, double height) {
         this.x = x;
@@ -35,24 +37,20 @@ public class Player {
     }
 
     public void update(double deltaTime, List<Platform> platforms, double canvasWidth, double canvasHeight, long now) {
-        // Выбираем нужную анимацию в зависимости от движения
         if (velocityX != 0) {
-            isIdle = false;  // Игрок двигается
+            isIdle = false;
         } else {
-            isIdle = true;   // Игрок стоит
+            isIdle = true;
         }
 
-        // Анимация
         List<Image> currentFrames = isIdle ? idleFrames : runFrames;  // Выбираем список кадров в зависимости от состояния
         if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
             currentFrameIndex = (currentFrameIndex + 1) % currentFrames.size();
             lastFrameTime = now;
         }
 
-        // Остальная логика обновления (гравитация, движение и т.д.)
         velocityY += gravity * deltaTime;
 
-        // Горизонтальное движение
         double nextX = x + velocityX * deltaTime;
         if (nextX < 0) {
             nextX = 0;
@@ -89,7 +87,6 @@ public class Player {
 
     private void loadSpriteSheets() {
         try {
-            // Загрузка спрайт-листов для стояния
             Image idleSpriteSheet = new Image(getClass().getResource("/player/Idle.png").toExternalForm());
             idleFrames = new ArrayList<>();
             int frameWidth = 192;  // Ширина одного кадра
@@ -163,13 +160,12 @@ public class Player {
         }
     }
 
-
     public void moveLeft(double deltaTime) {
-        velocityX = -moveSpeed;
+        velocityX = -getCurrentMoveSpeed();
         movingLeft = true;
     }
     public void moveRight(double deltaTime) {
-        velocityX = moveSpeed;
+        velocityX = getCurrentMoveSpeed();
         movingLeft = false;
     }
 
@@ -202,5 +198,17 @@ public class Player {
 
     public double getHeight() {
         return height;
+    }
+
+    public void setHasBoots(boolean value) {
+        this.hasBoots = value;
+    }
+
+    public boolean hasBoots() {
+        return hasBoots;
+    }
+
+    private double getCurrentMoveSpeed() {
+        return hasBoots ? moveSpeed * 1.5 : moveSpeed;
     }
 }

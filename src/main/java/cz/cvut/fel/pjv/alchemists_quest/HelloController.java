@@ -61,7 +61,9 @@ public class HelloController implements Initializable {
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
     private static final int MAX_STACK_SIZE = 16;
+    private static final int INVENTORY_SIZE = 5;
 
+    private int selectedInventoryIndex = 0;
     private double cameraX = 0;
     private double worldWidth = 2500;
 
@@ -108,6 +110,12 @@ public class HelloController implements Initializable {
                     }
                     if (event.getCode() == KeyCode.ESCAPE) {
                         restartGame();
+                    }
+                    if(event.getCode() == KeyCode.LEFT) {
+                        selectPreviousInventorySlot();
+                    }
+                    if(event.getCode() == KeyCode.RIGHT) {
+                        selectNextInventorySlot();
                     }
                 });
                 newScene.setOnKeyReleased(event -> activeKeys.remove(event.getCode()));
@@ -241,7 +249,6 @@ public class HelloController implements Initializable {
             ImageView imageView = new ImageView(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
             imageView.setFitWidth(50);
             imageView.setFitHeight(50);
-
             Label countLabel = new Label();
             countLabel.setFont(new Font(14));
             countLabel.setTextFill(Color.WHITE);
@@ -254,12 +261,42 @@ public class HelloController implements Initializable {
             slot.setUserData("empty");
             inventoryBox.getChildren().add(slot);
         }
+        updateInventorySelection();
+    }
+    private void updateInventorySelection() {
+        for (int i = 0; i < INVENTORY_SIZE; i++) {
+            StackPane slot = (StackPane) inventoryBox.getChildren().get(i);
+            if (i == selectedInventoryIndex) {
+                slot.setStyle("-fx-border-color: gold; -fx-border-width: 3;");
+            } else {
+                slot.setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
+            }
+        }
+    }
+
+    private void selectPreviousInventorySlot() {
+        selectedInventoryIndex = (selectedInventoryIndex - 1 + INVENTORY_SIZE) % INVENTORY_SIZE;
+        updateInventorySelection();
+    }
+
+    private void selectNextInventorySlot() {
+        selectedInventoryIndex = (selectedInventoryIndex + 1) % INVENTORY_SIZE;
+        updateInventorySelection();
+    }
+
+    private String getSelectedInventoryItemType() {
+        StackPane selectedSlot = (StackPane) inventoryBox.getChildren().get(selectedInventoryIndex);
+        Object userData = selectedSlot.getUserData();
+        if (userData != null && !userData.equals("empty")) {
+            return userData.toString();
+        }
+        return null;
     }
 
     private void handleInput(double deltaTime) {
-        if (activeKeys.contains(KeyCode.A) || activeKeys.contains(KeyCode.LEFT)) {
+        if (activeKeys.contains(KeyCode.A)) {
             player.moveLeft(deltaTime);
-        } else if (activeKeys.contains(KeyCode.D) || activeKeys.contains(KeyCode.RIGHT)) {
+        } else if (activeKeys.contains(KeyCode.D)) {
             player.moveRight(deltaTime);
         } else {
             player.stopHorizontalMovement();
@@ -274,13 +311,16 @@ public class HelloController implements Initializable {
     }
 
     private void update(double deltaTime) {
+        String selectedType = getSelectedInventoryItemType();
+        player.setHasBoots("boots".equals(selectedType));
+
         player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight(), System.nanoTime());
         long now = System.nanoTime();
         for (Enemy enemy : enemies) {
             enemy.update(deltaTime, platforms, now);
             if (enemy.collidesWith(player)) {
                 restartGame();
-                return; // Чтобы избежать повторных рестартов за один кадр
+                return;
             }
         }
 
