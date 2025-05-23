@@ -3,13 +3,12 @@ package cz.cvut.fel.pjv.alchemists_quest;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class Enemy {
     private double x, y;
-    private double width, height;
+    private final double width, height;
     private double velocityX = 100;
     private double velocityY = 0;
     private double gravity = 800;
@@ -31,7 +30,6 @@ public class Enemy {
 
     public void update(double deltaTime, List<Platform> platforms, long now) {
         velocityY += gravity * deltaTime;
-        double nextX = x + (movingRight ? velocityX : -velocityX) * deltaTime;
         double nextY = y + velocityY * deltaTime;
 
         onGround = false;
@@ -128,5 +126,19 @@ public class Enemy {
                 x + width > player.getX() &&
                 y < player.getY() + player.getHeight() &&
                 y + height > player.getY();
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+    public double getWidth() {
+        return width;
+    }
+    public double getHeight() {
+        return height;
     }
 }

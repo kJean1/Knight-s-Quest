@@ -9,7 +9,7 @@ import java.util.List;
 
 public class Player {
     private double x, y;
-    private double width, height;
+    private final double width, height;
     private double velocityX = 0;
     private double velocityY = 0;
     private double gravity = 800;
@@ -17,15 +17,22 @@ public class Player {
     private double jumpStrength = -600;
     private boolean onGround = false;
     private boolean movingLeft = false;
-    // --- добавим поле для boots ---
     private boolean hasBoots = false;
+    private boolean attackJustStarted = false;
 
     private List<Image> idleFrames;
     private List<Image> runFrames;
+    private List<Image> attackFrames;
+
     private int currentFrameIndex = 0;
     private boolean isIdle = true;
     private long lastFrameTime = 0;
     private long frameDuration = 100_000_000;
+    private boolean isAttacking = false;
+    private int attackFrameIndex = 0;
+    private double attackAnimTime = 0;
+    private double attackFrameDuration = 0.1;
+    private int attackFrameCount = 4;
 
     public Player(double x, double y, double width, double height) {
         this.x = x;
@@ -34,106 +41,6 @@ public class Player {
         this.height = height;
 
         loadSpriteSheets();
-    }
-
-    public void update(double deltaTime, List<Platform> platforms, double canvasWidth, double canvasHeight, long now) {
-        if (velocityX != 0) {
-            isIdle = false;
-        } else {
-            isIdle = true;
-        }
-
-        List<Image> currentFrames = isIdle ? idleFrames : runFrames;  // Выбираем список кадров в зависимости от состояния
-        if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
-            currentFrameIndex = (currentFrameIndex + 1) % currentFrames.size();
-            lastFrameTime = now;
-        }
-
-        velocityY += gravity * deltaTime;
-
-        double nextX = x + velocityX * deltaTime;
-        if (nextX < 0) {
-            nextX = 0;
-            velocityX = 0;
-        } else if (nextX + width > canvasWidth) {
-            nextX = canvasWidth - width;
-            velocityX = 0;
-        }
-        x = nextX;
-
-        // Вертикальное движение и столкновения
-        double nextY = y + velocityY * deltaTime;
-        onGround = false;
-
-        for (Platform platform : platforms) {
-            if (checkPlatformCollision(platform, nextY)) break;
-        }
-
-        if (!onGround) {
-            y = nextY;
-        }
-
-        if (y > canvasHeight) {
-            System.out.println("Player has fallen!");
-            if (!platforms.isEmpty()) {
-                Platform startPlatform = platforms.get(0);
-                x = startPlatform.getX() + 50;
-                y = startPlatform.getY() - height;
-                velocityY = 0;
-                onGround = false;
-            }
-        }
-    }
-
-    private void loadSpriteSheets() {
-        try {
-            Image idleSpriteSheet = new Image(getClass().getResource("/player/Idle.png").toExternalForm());
-            idleFrames = new ArrayList<>();
-            int frameWidth = 192;  // Ширина одного кадра
-            int frameHeight = 192; // Высота одного кадра
-            int idleFrameCount = 5; // Количество кадров в спрайт-листе Idle (960 / 192 = 5)
-
-            for (int i = 0; i < idleFrameCount; i++) {
-                WritableImage frame = new WritableImage(idleSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
-                idleFrames.add(frame);
-            }
-
-            // Загрузка спрайт-листов для бега
-            Image runSpriteSheet = new Image(getClass().getResource("/player/Run.png").toExternalForm());
-            runFrames = new ArrayList<>();
-            int runFrameCount = 6; // Количество кадров в спрайт-листе Run (1152 / 192 = 6)
-
-            for (int i = 0; i < runFrameCount; i++) {
-                WritableImage frame = new WritableImage(runSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
-                runFrames.add(frame);
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to load player sprite sheets.");
-            e.printStackTrace();
-            idleFrames = new ArrayList<>();
-            runFrames = new ArrayList<>();
-        }
-    }
-
-    public void restart(double x, double y) {
-        if (onGround) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    private boolean checkPlatformCollision(Platform platform, double nextY) {
-        boolean horizontalOverlap = x + width > platform.getX() && x < platform.getX() + platform.getWidth();
-        boolean fallingDown = velocityY >= 0;
-        boolean willLand = (y + height <= platform.getY()) && (nextY + height >= platform.getY());
-
-        if (horizontalOverlap && fallingDown && willLand) {
-            y = platform.getY() - height;
-            velocityY = 0;
-            onGround = true;
-            return true;
-        }
-        return false;
     }
 
     public void render(GraphicsContext gc, double cameraX) {
@@ -158,6 +65,149 @@ public class Player {
                 gc.drawImage(currentFrame, drawX, drawY, drawWidth, drawHeight);
             }
         }
+        if (isAttacking && attackFrames != null && !attackFrames.isEmpty()) {
+            currentFrames = attackFrames;
+        } else {
+            currentFrames = isIdle ? idleFrames : runFrames;
+        }
+
+        if (!currentFrames.isEmpty()) {
+            int frameIndex = isAttacking ? attackFrameIndex : currentFrameIndex;
+            if (frameIndex >= currentFrames.size()) frameIndex = 0;
+            Image currentFrame = currentFrames.get(frameIndex);
+
+            double drawX = x - cameraX;
+            double drawY = y - 54;
+            double drawWidth = width * 2.5;
+            double drawHeight = height * 2;
+
+            if (!isIdle && movingLeft) {
+                gc.save();
+                gc.translate(drawX + drawWidth, 0);
+                gc.scale(-1, 1);
+                gc.drawImage(currentFrame, 0, drawY, drawWidth, drawHeight);
+                gc.restore();
+            } else {
+                gc.drawImage(currentFrame, drawX, drawY, drawWidth, drawHeight);
+            }
+        }
+    }
+
+    public void update(double deltaTime, List<Platform> platforms, double canvasWidth, double canvasHeight, long now) {
+        if (velocityX != 0) {
+            isIdle = false;
+        } else {
+            isIdle = true;
+        }
+
+        List<Image> currentFrames = isIdle ? idleFrames : runFrames;
+        if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
+            currentFrameIndex = (currentFrameIndex + 1) % currentFrames.size();
+            lastFrameTime = now;
+        }
+
+        velocityY += gravity * deltaTime;
+
+        double nextX = x + velocityX * deltaTime;
+        if (nextX < 0) {
+            nextX = 0;
+            velocityX = 0;
+        } else if (nextX + width > canvasWidth) {
+            nextX = canvasWidth - width;
+            velocityX = 0;
+        }
+        x = nextX;
+
+        double nextY = y + velocityY * deltaTime;
+        onGround = false;
+
+        for (Platform platform : platforms) {
+            if (checkPlatformCollision(platform, nextY)) break;
+        }
+
+        if (!onGround) {
+            y = nextY;
+        }
+
+        if (y > canvasHeight) {
+            System.out.println("Player has fallen!");
+            if (!platforms.isEmpty()) {
+                Platform startPlatform = platforms.get(0);
+                x = startPlatform.getX() + 50;
+                y = startPlatform.getY() - height;
+                velocityY = 0;
+                onGround = false;
+            }
+        }
+        if (isAttacking) {
+            attackAnimTime += deltaTime;
+            if (attackAnimTime >= attackFrameDuration) {
+                attackAnimTime = 0;
+                attackFrameIndex++;
+                if (attackFrameIndex >= attackFrameCount) {
+                    isAttacking = false;
+                    attackFrameIndex = 0;
+                }
+            }
+        }
+        attackJustStarted = false;
+    }
+
+    private void loadSpriteSheets() {
+            Image idleSpriteSheet = new Image(getClass().getResource("/player/Idle.png").toExternalForm());
+            idleFrames = new ArrayList<>();
+            int frameWidth = 192;  // Ширина одного кадра
+            int frameHeight = 192; // Высота одного кадра
+            int idleFrameCount = 5; // Количество кадров в спрайт-листе Idle (960 / 192 = 5)
+
+            for (int i = 0; i < idleFrameCount; i++) {
+                WritableImage frame = new WritableImage(idleSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
+                idleFrames.add(frame);
+            }
+
+            // Загрузка спрайт-листов для бега
+            Image runSpriteSheet = new Image(getClass().getResource("/player/Run.png").toExternalForm());
+            runFrames = new ArrayList<>();
+            int runFrameCount = 6; // Количество кадров в спрайт-листе Run (1152 / 192 = 6)
+
+            for (int i = 0; i < runFrameCount; i++) {
+                WritableImage frame = new WritableImage(runSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
+                runFrames.add(frame);
+            }
+
+            Image attackSheet = new Image(getClass().getResource("/player/Attack.png").toExternalForm());
+            attackFrames = new ArrayList<>();
+            int attackFrameWidth = 96;
+            int attackFrameHeight = 96;
+            int attackFrameCount = 4;
+            for (int i = 0; i < attackFrameCount; i++) {
+                WritableImage frame = new WritableImage(
+                        attackSheet.getPixelReader(),
+                        i * attackFrameWidth, 0, attackFrameWidth, attackFrameHeight
+                );
+                attackFrames.add(frame);
+            }
+    }
+
+    public void restart(double x, double y) {
+        if (onGround) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    private boolean checkPlatformCollision(Platform platform, double nextY) {
+        boolean horizontalOverlap = x + width > platform.getX() && x < platform.getX() + platform.getWidth();
+        boolean fallingDown = velocityY >= 0;
+        boolean willLand = (y + height <= platform.getY()) && (nextY + height >= platform.getY());
+
+        if (horizontalOverlap && fallingDown && willLand) {
+            y = platform.getY() - height;
+            velocityY = 0;
+            onGround = true;
+            return true;
+        }
+        return false;
     }
 
     public void moveLeft(double deltaTime) {
@@ -183,6 +233,18 @@ public class Player {
     public boolean isOnGround() {
         return onGround;
     }
+
+    public void startAttack() {
+        if (!isAttacking) {
+            isAttacking = true;
+            attackFrameIndex = 0;
+            attackAnimTime = 0;
+            attackJustStarted = true;
+        }
+    }
+    public boolean isAttacking() { return isAttacking; }
+    public boolean attackJustStarted() { return attackJustStarted; }
+    public void resetAttackJustStarted() { attackJustStarted = false; }
 
     public double getX() {
         return x;

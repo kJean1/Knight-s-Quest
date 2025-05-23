@@ -86,7 +86,7 @@ public class HelloController implements Initializable {
                     if (event.getCode() == KeyCode.E) {
                         boolean nearAnyNPC = false;
                         for (NPC npc : npcs) {
-                            if (npc.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                            if (npc.isNear(player.getX(), player.getY())) {
                                 nearAnyNPC = true;
                                 break;
                             }
@@ -111,12 +111,23 @@ public class HelloController implements Initializable {
                     if (event.getCode() == KeyCode.ESCAPE) {
                         restartGame();
                     }
-                    if(event.getCode() == KeyCode.LEFT) {
-                        selectPreviousInventorySlot();
+                });
+                gameCanvas.setOnMousePressed(event -> {
+                    if (event.isPrimaryButtonDown()) {
+                        String selectedType = getSelectedInventoryItemType();
+                        if ("sword".equals(selectedType)) {
+                            player.startAttack();
+                        }
                     }
-                    if(event.getCode() == KeyCode.RIGHT) {
-                        selectNextInventorySlot();
+                });
+                gameCanvas.setOnScroll(event -> {
+                    int inventorySize = inventoryBox.getChildren().size();
+                    if (event.getDeltaY() > 0) {
+                        selectedInventoryIndex = (selectedInventoryIndex - 1 + inventorySize) % inventorySize;
+                    } else if (event.getDeltaY() < 0) {
+                        selectedInventoryIndex = (selectedInventoryIndex + 1) % inventorySize;
                     }
+                    updateInventorySelection();
                 });
                 newScene.setOnKeyReleased(event -> activeKeys.remove(event.getCode()));
             }
@@ -187,36 +198,33 @@ public class HelloController implements Initializable {
     }
 
     private void tradeItems(String tradeType) {
-        switch (tradeType) {
-            case "berryToBoots":
-                int berryCount = inventoryItems.getOrDefault("berry", 0);
-                if (berryCount >= 2) {
-                    inventoryItems.put("berry", berryCount - 2);
-                    updateInventoryViewAfterRemoval("berry", 2);
-                    inventoryItems.put("boots", inventoryItems.getOrDefault("boots", 0) + 1);
-                    updateInventoryView("boots");
-                    dialogLabel1.setText("You received Boots! Speed increased.");
-                } else {
-                    dialogLabel1.setText("Not enough berries for boots.");
-                    shake(tradeBox);
-                }
-                break;
-            case "stoneWoodToSword":
-                int stoneCount = inventoryItems.getOrDefault("stone", 0);
-                int woodCount = inventoryItems.getOrDefault("wood", 0);
-                if (stoneCount >= 1 && woodCount >= 1) {
-                    inventoryItems.put("stone", stoneCount - 1);
-                    updateInventoryViewAfterRemoval("stone", 1);
-                    inventoryItems.put("wood", woodCount - 1);
-                    updateInventoryViewAfterRemoval("wood", 1);
-                    inventoryItems.put("sword", inventoryItems.getOrDefault("sword", 0) + 1);
-                    updateInventoryView("sword");
-                    dialogLabel1.setText("You received a Sword!");
-                } else {
-                    dialogLabel1.setText("Not enough resources for sword.");
-                    shake(tradeBox);
-                }
-                break;
+        if (tradeType.equals("berryToBoots")) {
+            int berryCount = inventoryItems.getOrDefault("berry", 0);
+            if (berryCount >= 2) {
+                inventoryItems.put("berry", berryCount - 2);
+                updateInventoryViewAfterRemoval("berry", 2);
+                inventoryItems.put("boots", inventoryItems.getOrDefault("boots", 0) + 1);
+                updateInventoryView("boots");
+                dialogLabel1.setText("You received Boots! Speed increased.");
+            } else {
+                dialogLabel1.setText("Not enough berries for boots.");
+                shake(tradeBox);
+            }
+        } else if (tradeType.equals("stoneWoodToSword")) {
+            int stoneCount = inventoryItems.getOrDefault("stone", 0);
+            int woodCount = inventoryItems.getOrDefault("wood", 0);
+            if (stoneCount >= 1 && woodCount >= 1) {
+                inventoryItems.put("stone", stoneCount - 1);
+                updateInventoryViewAfterRemoval("stone", 1);
+                inventoryItems.put("wood", woodCount - 1);
+                updateInventoryViewAfterRemoval("wood", 1);
+                inventoryItems.put("sword", inventoryItems.getOrDefault("sword", 0) + 1);
+                updateInventoryView("sword");
+                dialogLabel1.setText("You received a Sword!");
+            } else {
+                dialogLabel1.setText("Not enough resources for sword.");
+                shake(tradeBox);
+            }
         }
     }
 
@@ -314,6 +322,24 @@ public class HelloController implements Initializable {
         String selectedType = getSelectedInventoryItemType();
         player.setHasBoots("boots".equals(selectedType));
 
+        if (player.attackJustStarted()) {
+            Iterator<Enemy> enemyIterator = enemies.iterator();
+            double px = player.getX() + player.getWidth() / 2;
+            double py = player.getY() + player.getHeight() / 2;
+            double attackRadius = 150;
+
+            while (enemyIterator.hasNext()) {
+                Enemy enemy = enemyIterator.next();
+                double ex = enemy.getX() + enemy.getWidth() / 2;
+                double ey = enemy.getY() + enemy.getHeight() / 2;
+                double dist = Math.hypot(px - ex, py - ey);
+                if (dist <= attackRadius) {
+                    enemyIterator.remove(); // убиваем врага
+                }
+            }
+        }
+        player.resetAttackJustStarted();
+
         player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight(), System.nanoTime());
         long now = System.nanoTime();
         for (Enemy enemy : enemies) {
@@ -344,7 +370,7 @@ public class HelloController implements Initializable {
         if (showDialog) {
             boolean stillNearNPC = false;
             for (NPC npc : npcs) {
-                if (npc.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
+                if (npc.isNear(player.getX(), player.getY())) {
                     stillNearNPC = true;
                     break;
                 }
@@ -450,6 +476,7 @@ public class HelloController implements Initializable {
         player.render(gc, cameraX);
 
         for (NPC npc : npcs) {
+            npc.update(System.nanoTime());
             npc.render(gc, cameraX);
         }
         for (Item item : items) {
@@ -470,7 +497,6 @@ public class HelloController implements Initializable {
     }
 
     private void loadLevelFromJson(String filename) {
-        try {
             InputStream is = getClass().getResourceAsStream("/levels/" + filename);
 
             JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
@@ -497,7 +523,7 @@ public class HelloController implements Initializable {
                 double x = obj.get("x").getAsDouble();
                 double y = obj.get("y").getAsDouble();
                 Image image = new Image(getClass().getResource("/npc.png").toExternalForm());
-                npcs.add(new NPC(x, y, image));
+                npcs.add(new NPC(x, y));
             }
 
             JsonArray itemsArray = json.getAsJsonArray("items");
@@ -534,8 +560,5 @@ public class HelloController implements Initializable {
                 double cy = castleObj.get("y").getAsDouble();
                 castle = new Castle(cx, cy);
             }
-        } catch (Exception e) {
-            System.err.println("Error loading level file: " + filename);
-        }
     }
 }
