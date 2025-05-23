@@ -10,9 +10,14 @@
 <?import javafx.scene.layout.VBox?>
 
 <?import javafx.scene.image.Image?>
+<?import java.net.URL?>
+<?import javafx.scene.control.ComboBox?>
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController"
             prefHeight="650.0" prefWidth="800.0">
+    <stylesheets>
+        <URL value="@game_menus.css"/>
+    </stylesheets>
 
     <top>
         <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
@@ -80,6 +85,29 @@
                     <Label text="Sword" style="-fx-text-fill: white;"/>
                 </HBox>
                 <Button text="Back" onAction="#backToMenu"/>
+            </VBox>
+
+            <VBox fx:id="victoryMenuBox"
+                  alignment="CENTER"
+                  spacing="20"
+                  styleClass="victory-menu"
+                  visible="false">
+                <Label text="Victory!" styleClass="victory-label"/>
+                <Button fx:id="nextLevelButton" text="Next Level" onAction="#onNextLevel" styleClass="victory-button"/>
+                <Button fx:id="restartLevelButtonVictory" text="Restart" onAction="#onRestartLevel" styleClass="victory-button"/>
+                <Button fx:id="selectLevelButtonVictory" text="Select Level" onAction="#onSelectLevel" styleClass="victory-button"/>
+                <ComboBox fx:id="levelComboBoxVictory" styleClass="combo-box"/>
+            </VBox>
+            <VBox fx:id="pauseMenuBox"
+                  alignment="CENTER"
+                  spacing="20"
+                  styleClass="pause-menu"
+                  visible="false">
+                <Label text="Paused" styleClass="pause-label"/>
+                <Button fx:id="resumeButton" text="Resume" onAction="#onResume" styleClass="pause-button"/>
+                <Button fx:id="restartLevelButtonPause" text="Restart" onAction="#onRestartLevel" styleClass="pause-button"/>
+                <Button fx:id="selectLevelButtonPause" text="Select Level" onAction="#onSelectLevel" styleClass="pause-button"/>
+                <ComboBox fx:id="levelComboBoxPause" styleClass="combo-box"/>
             </VBox>
         </StackPane>
     </center>

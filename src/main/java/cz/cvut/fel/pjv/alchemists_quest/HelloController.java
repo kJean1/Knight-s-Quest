@@ -6,11 +6,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import javafx.animation.AnimationTimer;
 import javafx.animation.TranslateTransition;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -21,10 +24,16 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.*;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class HelloController implements Initializable {
 
@@ -42,6 +51,26 @@ public class HelloController implements Initializable {
     private VBox tradeBox;
     @FXML
     private Label dialogLabel1;
+    @FXML
+    private VBox victoryMenuBox;
+    @FXML
+    private VBox pauseMenuBox;
+    @FXML
+    private Button nextLevelButton;
+    @FXML
+    private Button restartLevelButtonVictory;
+    @FXML
+    private Button restartLevelButtonPause;
+    @FXML
+    private Button resumeButton;
+    @FXML
+    private Button selectLevelButtonVictory;
+    @FXML
+    private Button selectLevelButtonPause;
+    @FXML
+    private ComboBox<String> levelComboBoxVictory;
+    @FXML
+    private ComboBox<String> levelComboBoxPause;
 
     private GraphicsContext gc;
     private Player player;
@@ -55,8 +84,10 @@ public class HelloController implements Initializable {
     private final List<Bush> bushes = new ArrayList<>();
     private Castle castle;
     private boolean gameWon = false;
+    private boolean paused = false;
     private boolean isDialogOpen = false;
     private final List<Enemy> enemies = new ArrayList<>();
+    private List<String> levels;
 
     private static final int PLAYER_WIDTH = 40;
     private static final int PLAYER_HEIGHT = 60;
@@ -66,6 +97,7 @@ public class HelloController implements Initializable {
     private int selectedInventoryIndex = 0;
     private double cameraX = 0;
     private double worldWidth = 2500;
+    private String currentLevel = "level1.json";
 
     private void shake(Node node) {
         TranslateTransition tt = new TranslateTransition(Duration.millis(70), node);
@@ -79,6 +111,12 @@ public class HelloController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        levels = getAllLevelFiles();
+        levelComboBoxVictory.getItems().setAll(levels);
+        levelComboBoxPause.getItems().setAll(levels);
+        victoryMenuBox.setVisible(false);
+        pauseMenuBox.setVisible(false);
+
         gameCanvas.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.setOnKeyPressed(event -> {
@@ -99,17 +137,18 @@ public class HelloController implements Initializable {
                                 break;
                             }
                         }
-                        if(isDialogOpen)
-                        {
+                        if (isDialogOpen) {
                             closeDialog();
-                        }
-                        else if(nearAnyNPC)
-                        {
+                        } else if (nearAnyNPC) {
                             openDialog();
                         }
                     }
                     if (event.getCode() == KeyCode.ESCAPE) {
-                        restartGame();
+                        if (paused) {
+                            hideMenus();
+                        } else {
+                            showPauseMenu();
+                        }
                     }
                 });
                 gameCanvas.setOnMousePressed(event -> {
@@ -143,11 +182,15 @@ public class HelloController implements Initializable {
         double canvasHeight = gameCanvas.getHeight();
         player = new Player(100, canvasHeight - PLAYER_HEIGHT - 50, PLAYER_WIDTH, PLAYER_HEIGHT);
 
-        loadLevelFromJson("level1.json");
+        loadLevelFromJson(currentLevel);
 
         AnimationTimer gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
+                if (paused) {
+                    render();
+                    return;
+                }
                 if (lastUpdate == 0) {
                     lastUpdate = now;
                     return;
@@ -162,6 +205,48 @@ public class HelloController implements Initializable {
             }
         };
         gameLoop.start();
+    }
+
+    @FXML
+    private void onNextLevel() {
+        int currentIdx = levels.indexOf(currentLevel);
+        if (currentIdx < levels.size() - 1) {
+            currentLevel = levels.get(currentIdx + 1);
+            levelComboBoxVictory.setValue(currentLevel);
+            levelComboBoxPause.setValue(currentLevel);
+            restartGame();
+        }
+    }
+
+    @FXML
+    private void onRestartLevel() {
+        hideMenus();
+        restartGame();
+    }
+
+    @FXML
+    private void onSelectLevel(ActionEvent event) {
+        Object source = event.getSource();
+        String selectedLevel = null;
+
+        if (source == selectLevelButtonVictory) {
+            selectedLevel = levelComboBoxVictory.getValue();
+            levelComboBoxPause.setValue(selectedLevel);
+        } else if (source == selectLevelButtonPause) {
+            selectedLevel = levelComboBoxPause.getValue();
+            levelComboBoxVictory.setValue(selectedLevel);
+        }
+
+        if (selectedLevel != null && !selectedLevel.equals(currentLevel)) {
+            currentLevel = selectedLevel;
+            restartGame();
+        }
+        hideMenus();
+    }
+
+    @FXML
+    private void onResume() {
+        hideMenus();
     }
 
     @FXML
@@ -248,7 +333,6 @@ public class HelloController implements Initializable {
         }
     }
 
-
     private void initializeInventory() {
         inventoryBox.getChildren().clear();
         for (int i = 0; i < 5; i++) {
@@ -280,16 +364,6 @@ public class HelloController implements Initializable {
                 slot.setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
             }
         }
-    }
-
-    private void selectPreviousInventorySlot() {
-        selectedInventoryIndex = (selectedInventoryIndex - 1 + INVENTORY_SIZE) % INVENTORY_SIZE;
-        updateInventorySelection();
-    }
-
-    private void selectNextInventorySlot() {
-        selectedInventoryIndex = (selectedInventoryIndex + 1) % INVENTORY_SIZE;
-        updateInventorySelection();
     }
 
     private String getSelectedInventoryItemType() {
@@ -345,6 +419,7 @@ public class HelloController implements Initializable {
         for (Enemy enemy : enemies) {
             enemy.update(deltaTime, platforms, now);
             if (enemy.collidesWith(player)) {
+                hideMenus();
                 restartGame();
                 return;
             }
@@ -364,9 +439,21 @@ public class HelloController implements Initializable {
             }
         }
 
+        // Победа
         if (castle != null && castle.intersects(player)) {
             gameWon = true;
+            showVictoryMenu();
+            return;
         }
+
+        // Падение в пропасть
+        if (player.getY() > gameCanvas.getHeight() + 100) {
+            hideMenus();
+            restartGame();
+            return;
+        }
+
+        // Диалоги и кусты
         if (showDialog) {
             boolean stillNearNPC = false;
             for (NPC npc : npcs) {
@@ -383,36 +470,40 @@ public class HelloController implements Initializable {
                     break;
                 }
             }
-            if (castle != null && castle.intersects(player)) {
-                gameWon = true;
-            }
             if (!stillNearNPC) {
                 showDialog = false;
             }
         }
     }
-    private void showVictoryScreen() {
-        gc.setFill(new Color(0, 0, 0, 0.7));
-        gc.fillRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
-        infoLabel.setText("Press ESC to restart");
 
-        Image winImage = new Image(getClass().getResourceAsStream("/win.png"));
-
-        double imageX = (gameCanvas.getWidth() - winImage.getWidth()) / 2;
-        double imageY = (gameCanvas.getHeight() - winImage.getHeight()) / 2;
-
-        gc.drawImage(winImage, imageX, imageY);
+    private void showVictoryMenu() {
+        victoryMenuBox.setVisible(true);
+        victoryMenuBox.toFront();
+        paused = true;
     }
+
+    private void showPauseMenu() {
+        pauseMenuBox.setVisible(true);
+        pauseMenuBox.toFront();
+        paused = true;
+    }
+
+    private void hideMenus() {
+        victoryMenuBox.setVisible(false);
+        pauseMenuBox.setVisible(false);
+        paused = false;
+    }
+
     private void restartGame() {
+        hideMenus();
         gameWon = false;
         infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interact");
         inventoryItems.clear();
         initializeInventory();
-        loadLevelFromJson("level1.json");
+        loadLevelFromJson(currentLevel);
         double canvasHeight = gameCanvas.getHeight();
         player.restart(100, canvasHeight - PLAYER_HEIGHT - 50);
     }
-
 
     private void updateInventoryView(String newItemType) {
         for (Node node : inventoryBox.getChildren()) {
@@ -491,74 +582,97 @@ public class HelloController implements Initializable {
         if (castle != null) {
             castle.render(gc, cameraX);
         }
-        if (gameWon) {
-            showVictoryScreen();
-        }
     }
 
     private void loadLevelFromJson(String filename) {
-            InputStream is = getClass().getResourceAsStream("/levels/" + filename);
+        InputStream is = getClass().getResourceAsStream("/levels/" + filename);
 
-            JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
+        JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
 
-            platforms.clear();
-            npcs.clear();
-            items.clear();
-            enemies.clear();
+        platforms.clear();
+        npcs.clear();
+        items.clear();
+        enemies.clear();
+        bushes.clear();
+        castle = null;
 
-            JsonArray platformsArray = json.getAsJsonArray("platforms");
-            for (int i = 0; i < platformsArray.size(); i++) {
-                JsonObject obj = platformsArray.get(i).getAsJsonObject();
-                platforms.add(new Platform(
-                        obj.get("x").getAsDouble(),
-                        obj.get("y").getAsDouble(),
-                        obj.get("width").getAsDouble(),
-                        obj.get("height").getAsDouble()
-                ));
+        JsonArray platformsArray = json.getAsJsonArray("platforms");
+        for (int i = 0; i < platformsArray.size(); i++) {
+            JsonObject obj = platformsArray.get(i).getAsJsonObject();
+            platforms.add(new Platform(
+                    obj.get("x").getAsDouble(),
+                    obj.get("y").getAsDouble(),
+                    obj.get("width").getAsDouble(),
+                    obj.get("height").getAsDouble()
+            ));
+        }
+
+        JsonArray npcArray = json.getAsJsonArray("npcs");
+        for (JsonElement nElem : npcArray) {
+            JsonObject obj = nElem.getAsJsonObject();
+            double x = obj.get("x").getAsDouble();
+            double y = obj.get("y").getAsDouble();
+            npcs.add(new NPC(x, y));
+        }
+
+        JsonArray itemsArray = json.getAsJsonArray("items");
+        for (int i = 0; i < itemsArray.size(); i++) {
+            JsonObject obj = itemsArray.get(i).getAsJsonObject();
+            items.add(new Item(
+                    obj.get("x").getAsDouble(),
+                    obj.get("y").getAsDouble(),
+                    obj.get("type").getAsString()
+            ));
+        }
+
+        JsonArray bushArray = json.getAsJsonArray("bushes");
+        for (JsonElement bElem : bushArray) {
+            JsonObject b = bElem.getAsJsonObject();
+            double x = b.get("x").getAsDouble();
+            double y = b.get("y").getAsDouble();
+            bushes.add(new Bush(x, y));
+        }
+
+        JsonArray enemiesarray = json.getAsJsonArray("enemies");
+        for (JsonElement eElem : enemiesarray) {
+            JsonObject e = eElem.getAsJsonObject();
+            double x = e.get("x").getAsDouble();
+            double y = e.get("y").getAsDouble();
+            double width = e.get("width").getAsDouble();
+            double height = e.get("height").getAsDouble();
+            enemies.add(new Enemy(x, y, width, height));
+        }
+
+        if (json.has("castle")) {
+            JsonObject castleObj = json.getAsJsonObject("castle");
+            double cx = castleObj.get("x").getAsDouble();
+            double cy = castleObj.get("y").getAsDouble();
+            castle = new Castle(cx, cy);
+        }
+    }
+    private List<String> getAllLevelFiles() {
+        try {
+            // Путь к папке с уровнями в ресурсах
+            URI uri = getClass().getResource("/levels/").toURI();
+            Path levelsPath;
+            if (uri.getScheme().equals("jar")) {
+                // Если в jar, используем FileSystem
+                FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                levelsPath = fs.getPath("/levels/");
+            } else {
+                levelsPath = Paths.get(uri);
             }
 
-            JsonArray npcArray = json.getAsJsonArray("npcs");
-            for (JsonElement nElem : npcArray) {
-                JsonObject obj = nElem.getAsJsonObject();
-                double x = obj.get("x").getAsDouble();
-                double y = obj.get("y").getAsDouble();
-                Image image = new Image(getClass().getResource("/npc.png").toExternalForm());
-                npcs.add(new NPC(x, y));
+            // Получаем все .json файлы
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(levelsPath, "*.json")) {
+                return StreamSupport.stream(stream.spliterator(), false)
+                        .map(path -> path.getFileName().toString())
+                        .sorted()
+                        .collect(Collectors.toList());
             }
-
-            JsonArray itemsArray = json.getAsJsonArray("items");
-            for (int i = 0; i < itemsArray.size(); i++) {
-                JsonObject obj = itemsArray.get(i).getAsJsonObject();
-                items.add(new Item(
-                        obj.get("x").getAsDouble(),
-                        obj.get("y").getAsDouble(),
-                        obj.get("type").getAsString()
-                ));
-            }
-
-            JsonArray bushArray = json.getAsJsonArray("bushes");
-            for (JsonElement bElem : bushArray) {
-                JsonObject b = bElem.getAsJsonObject();
-                double x = b.get("x").getAsDouble();
-                double y = b.get("y").getAsDouble();
-                bushes.add(new Bush(x, y));
-            }
-
-            JsonArray enemiesarray = json.getAsJsonArray("enemies");
-            for (JsonElement eElem : enemiesarray) {
-                JsonObject e = eElem.getAsJsonObject();
-                double x = e.get("x").getAsDouble();
-                double y = e.get("y").getAsDouble();
-                double width = e.get("width").getAsDouble();
-                double height = e.get("height").getAsDouble();
-                enemies.add(new Enemy(x, y, width, height));
-            }
-
-            if (json.has("castle")) {
-                JsonObject castleObj = json.getAsJsonObject("castle");
-                double cx = castleObj.get("x").getAsDouble();
-                double cy = castleObj.get("y").getAsDouble();
-                castle = new Castle(cx, cy);
-            }
+        } catch (IOException | URISyntaxException e) {
+            e.printStackTrace();
+            return List.of("level1.json");
+        }
     }
 }
