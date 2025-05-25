@@ -142,6 +142,9 @@ public class HelloController implements Initializable {
                         } else if (nearAnyNPC) {
                             openDialog();
                         }
+                        if(tradeBox.getScene() != null) {
+                            tradeBox.setVisible(false);
+                        }
                     }
                     if (event.getCode() == KeyCode.ESCAPE) {
                         if (paused) {
