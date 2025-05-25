@@ -16,6 +16,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -240,6 +241,11 @@ public class HelloController implements Initializable {
     @FXML
     private void onSaveProgress() {
         saveProgress(currentLevel, inventoryItems, player.getX(), player.getY());
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Save");
+        alert.setHeaderText(null);
+        alert.setContentText("Saved successfully!");
+        alert.showAndWait();
     }
 
     private void saveProgress(String currentLevel, Map<String, Integer> inventory, double playerX, double playerY) {

@@ -34,8 +34,8 @@
 
                 <!-- Кнопки для выбора действия -->
                 <HBox spacing="10" alignment="CENTER">
-                    <Button fx:id="talkButton" text="Talk" onAction="#handleTalk"/>
-                    <Button fx:id="tradeButton" text="Trade" onAction="#handleTrade"/>
+                    <Button fx:id="talkButton" text="Talk" onAction="#handleTalk" styleClass="pause-button"/>
+                    <Button fx:id="tradeButton" text="Trade" onAction="#handleTrade" styleClass="pause-button"/>
                 </HBox>
             </VBox>
             <VBox fx:id="tradeBox" visible="false" alignment="CENTER" spacing="16" style="-fx-background-color: rgba(40,40,40,0.9); -fx-padding: 24;">
@@ -84,7 +84,7 @@
                     </ImageView>
                     <Label text="Sword" style="-fx-text-fill: white;"/>
                 </HBox>
-                <Button text="Back" onAction="#backToMenu"/>
+                <Button text="Back" onAction="#backToMenu" styleClass="pause-button"/>
             </VBox>
 
             <VBox fx:id="victoryMenuBox"
