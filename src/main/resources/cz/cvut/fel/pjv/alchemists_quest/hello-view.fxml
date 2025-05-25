@@ -8,10 +8,11 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 <?import javafx.scene.image.Image?>
 <?import java.net.URL?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.CheckBox?>
+
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController"
             prefHeight="650.0" prefWidth="800.0">
@@ -27,7 +28,20 @@
 
     <center>
         <StackPane>
+
+            <!-- =============== МЕНЮ ПРИ ЗАПУСКЕ =============== -->
+            <VBox fx:id="mainMenuBox" alignment="CENTER" spacing="24" style="-fx-background-color: rgba(20,20,20,0.85); -fx-padding: 0 0 0 0;" visible="true" managed="true">
+                <ImageView fx:id="logoView" fitWidth="420" preserveRatio="true"/>
+                <HBox alignment="CENTER" spacing="12">
+                    <Button fx:id="playButton" text="Play"/>
+                    <ComboBox fx:id="levelComboBox" prefWidth="150"/>
+                </HBox>
+                <CheckBox fx:id="loggingCheckBox" text="Enable logging"/>
+            </VBox>
+            <!-- =============== /МЕНЮ ПРИ ЗАПУСКЕ =============== -->
+
             <Canvas fx:id="gameCanvas" width="800.0" height="600.0" />
+
             <!-- Диалоговое окно -->
             <VBox fx:id="dialogBox" visible="false" alignment="CENTER" spacing="10" style="-fx-background-color: rgba(0, 0, 0, 0.7); -fx-padding: 20;">
                 <Label fx:id="dialogLabel" text="NPC: How can I help you?" style="-fx-text-fill: white; -fx-font-size: 16px;"/>

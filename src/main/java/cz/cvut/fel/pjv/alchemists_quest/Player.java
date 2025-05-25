@@ -14,11 +14,12 @@ public class Player {
     private double velocityY = 0;
     private double gravity = 800;
     private double moveSpeed = 400;
-    private double jumpStrength = -600;
+    private double jumpStrength = -450;
     private boolean onGround = false;
     private boolean movingLeft = false;
     private boolean hasBoots = false;
     private boolean attackJustStarted = false;
+    private double attackRadius = 110;
 
     private List<Image> idleFrames;
     private List<Image> runFrames;
@@ -44,43 +45,27 @@ public class Player {
     }
 
     public void render(GraphicsContext gc, double cameraX) {
-        List<Image> currentFrames = isIdle ? idleFrames : runFrames;
+        List<Image> currentFrames;
+        int frameIndex;
+        double drawX = x - cameraX;
+        double drawY = y - 54;
+        double drawWidth = width * 2.5;
+        double drawHeight = height * 2;
 
-        if (!currentFrames.isEmpty()) {
-            Image currentFrame = currentFrames.get(currentFrameIndex);
-
-            double drawX = x - cameraX;
-            double drawY = y - 54;
-            double drawWidth = width * 2.5;
-            double drawHeight = height * 2;
-
-            if (!isIdle && movingLeft) {
-                gc.save();
-                gc.translate(drawX + drawWidth, 0);
-                gc.scale(-1, 1);
-                gc.drawImage(currentFrame, 0, drawY, drawWidth, drawHeight);
-                gc.restore();
-            }
-            else {
-                gc.drawImage(currentFrame, drawX, drawY, drawWidth, drawHeight);
-            }
-        }
+        // --- ИСПРАВЛЕНО: Рисуем только одну анимацию за вызов ---
         if (isAttacking && attackFrames != null && !attackFrames.isEmpty()) {
             currentFrames = attackFrames;
+            frameIndex = attackFrameIndex;
+        } else if (!isIdle) {
+            currentFrames = runFrames;
+            frameIndex = currentFrameIndex;
         } else {
-            currentFrames = isIdle ? idleFrames : runFrames;
+            currentFrames = idleFrames;
+            frameIndex = currentFrameIndex;
         }
-
         if (!currentFrames.isEmpty()) {
-            int frameIndex = isAttacking ? attackFrameIndex : currentFrameIndex;
             if (frameIndex >= currentFrames.size()) frameIndex = 0;
             Image currentFrame = currentFrames.get(frameIndex);
-
-            double drawX = x - cameraX;
-            double drawY = y - 54;
-            double drawWidth = width * 2.5;
-            double drawHeight = height * 2;
-
             if (!isIdle && movingLeft) {
                 gc.save();
                 gc.translate(drawX + drawWidth, 0);
@@ -100,10 +85,13 @@ public class Player {
             isIdle = true;
         }
 
-        List<Image> currentFrames = isIdle ? idleFrames : runFrames;
-        if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
-            currentFrameIndex = (currentFrameIndex + 1) % currentFrames.size();
-            lastFrameTime = now;
+        // --- Обновление кадров анимации ---
+        if (!isAttacking) {
+            List<Image> currentFrames = isIdle ? idleFrames : runFrames;
+            if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
+                currentFrameIndex = (currentFrameIndex + 1) % currentFrames.size();
+                lastFrameTime = now;
+            }
         }
 
         velocityY += gravity * deltaTime;
@@ -154,39 +142,38 @@ public class Player {
     }
 
     private void loadSpriteSheets() {
-            Image idleSpriteSheet = new Image(getClass().getResource("/player/Idle.png").toExternalForm());
-            idleFrames = new ArrayList<>();
-            int frameWidth = 192;  // Ширина одного кадра
-            int frameHeight = 192; // Высота одного кадра
-            int idleFrameCount = 5; // Количество кадров в спрайт-листе Idle (960 / 192 = 5)
+        Image idleSpriteSheet = new Image(getClass().getResource("/player/Idle.png").toExternalForm());
+        idleFrames = new ArrayList<>();
+        int frameWidth = 192;
+        int frameHeight = 192;
+        int idleFrameCount = 5;
 
-            for (int i = 0; i < idleFrameCount; i++) {
-                WritableImage frame = new WritableImage(idleSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
-                idleFrames.add(frame);
-            }
+        for (int i = 0; i < idleFrameCount; i++) {
+            WritableImage frame = new WritableImage(idleSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
+            idleFrames.add(frame);
+        }
 
-            // Загрузка спрайт-листов для бега
-            Image runSpriteSheet = new Image(getClass().getResource("/player/Run.png").toExternalForm());
-            runFrames = new ArrayList<>();
-            int runFrameCount = 6; // Количество кадров в спрайт-листе Run (1152 / 192 = 6)
+        Image runSpriteSheet = new Image(getClass().getResource("/player/Run.png").toExternalForm());
+        runFrames = new ArrayList<>();
+        int runFrameCount = 6;
 
-            for (int i = 0; i < runFrameCount; i++) {
-                WritableImage frame = new WritableImage(runSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
-                runFrames.add(frame);
-            }
+        for (int i = 0; i < runFrameCount; i++) {
+            WritableImage frame = new WritableImage(runSpriteSheet.getPixelReader(), i * frameWidth, 0, frameWidth, frameHeight);
+            runFrames.add(frame);
+        }
 
-            Image attackSheet = new Image(getClass().getResource("/player/Attack.png").toExternalForm());
-            attackFrames = new ArrayList<>();
-            int attackFrameWidth = 96;
-            int attackFrameHeight = 96;
-            int attackFrameCount = 4;
-            for (int i = 0; i < attackFrameCount; i++) {
-                WritableImage frame = new WritableImage(
-                        attackSheet.getPixelReader(),
-                        i * attackFrameWidth, 0, attackFrameWidth, attackFrameHeight
-                );
-                attackFrames.add(frame);
-            }
+        Image attackSheet = new Image(getClass().getResource("/player/Attack.png").toExternalForm());
+        attackFrames = new ArrayList<>();
+        int attackFrameWidth = 96;
+        int attackFrameHeight = 96;
+        int attackFrameCount = 4;
+        for (int i = 0; i < attackFrameCount; i++) {
+            WritableImage frame = new WritableImage(
+                    attackSheet.getPixelReader(),
+                    i * attackFrameWidth, 0, attackFrameWidth, attackFrameHeight
+            );
+            attackFrames.add(frame);
+        }
     }
 
     public void restart(double x, double y) {
@@ -195,6 +182,7 @@ public class Player {
             this.y = y;
         }
     }
+
 
     private boolean checkPlatformCollision(Platform platform, double nextY) {
         boolean horizontalOverlap = x + width > platform.getX() && x < platform.getX() + platform.getWidth();
@@ -209,6 +197,7 @@ public class Player {
         }
         return false;
     }
+
 
     public void moveLeft(double deltaTime) {
         velocityX = -getCurrentMoveSpeed();
@@ -273,4 +262,6 @@ public class Player {
     private double getCurrentMoveSpeed() {
         return hasBoots ? moveSpeed * 1.5 : moveSpeed;
     }
+
+    public double getAttackRadius() {return attackRadius;}
 }

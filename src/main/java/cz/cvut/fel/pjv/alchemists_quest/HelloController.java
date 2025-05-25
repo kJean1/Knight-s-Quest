@@ -20,6 +20,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.CheckBox;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -38,6 +39,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
+import java.util.logging.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -77,6 +79,17 @@ public class HelloController implements Initializable {
     private ComboBox<String> levelComboBoxVictory;
     @FXML
     private ComboBox<String> levelComboBoxPause;
+
+    // --- Main menu fields ---
+    @FXML private VBox mainMenuBox;
+    @FXML private Button playButton;
+    @FXML private ComboBox<String> levelComboBox;
+    @FXML private CheckBox loggingCheckBox;
+    @FXML private ImageView logoView;
+
+    // --- Logger ---
+    public static final Logger GAME_LOGGER = Logger.getLogger("AlchemistsQuestLogger");
+    public static boolean loggingEnabled = false;
 
     private GraphicsContext gc;
     private Player player;
@@ -121,7 +134,40 @@ public class HelloController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        levels = getAllLevelFiles();
+        // --- LOGGER setup ---
+        setupLogger();
+
+        // --- Main menu logic ---
+        if (mainMenuBox != null) {
+            // Логотип
+            try {
+                Image logoImg = new Image(getClass().getResource("/logo.png").toExternalForm());
+                logoView.setImage(logoImg);
+            } catch (Exception ignored) {}
+
+            // Уровни для главного меню
+            levels = getAllLevelFiles();
+            levelComboBox.getItems().setAll(levels);
+            levelComboBox.setValue(levels.contains("level1.json") ? "level1.json" : levels.get(0));
+
+            // Логгер чекбокс
+            loggingCheckBox.setSelected(loggingEnabled);
+            loggingCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                loggingEnabled = newVal;
+                if (loggingEnabled) {
+                    GAME_LOGGER.setLevel(Level.INFO);
+                    GAME_LOGGER.info("Logging enabled");
+                } else {
+                    GAME_LOGGER.setLevel(Level.OFF);
+                }
+            });
+
+            // Play button
+            playButton.setOnAction(e -> showGame());
+        }
+
+        // --- Остальные уровни (для игровых меню) ---
+        if (levels == null) levels = getAllLevelFiles();
         levelComboBoxVictory.getItems().setAll(levels);
         levelComboBoxPause.getItems().setAll(levels);
         victoryMenuBox.setVisible(false);
@@ -196,11 +242,20 @@ public class HelloController implements Initializable {
         double canvasHeight = gameCanvas.getHeight();
         player = new Player(100, canvasHeight - PLAYER_HEIGHT - 50, PLAYER_WIDTH, PLAYER_HEIGHT);
 
-        loadLevelFromJson(currentLevel);
+        // При старте только меню
+        if (mainMenuBox != null && mainMenuBox.isVisible()) {
+            gameCanvas.setDisable(true);
+        } else {
+            loadLevelFromJson(currentLevel);
+        }
 
         AnimationTimer gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
+                if (mainMenuBox != null && mainMenuBox.isVisible()) {
+                    // Не запускать игровой цикл, если меню открыто
+                    return;
+                }
                 if (paused) {
                     render();
                     return;
@@ -219,6 +274,32 @@ public class HelloController implements Initializable {
             }
         };
         gameLoop.start();
+    }
+
+    private void showGame() {
+        if (mainMenuBox != null) {
+            mainMenuBox.setVisible(false);
+            mainMenuBox.setManaged(false);
+            gameCanvas.setDisable(false);
+            String chosenLevel = levelComboBox.getValue();
+            if (chosenLevel != null && !chosenLevel.isEmpty()) {
+                currentLevel = chosenLevel;
+            }
+            loadLevelFromJson(currentLevel);
+            gameCanvas.setFocusTraversable(true);
+            gameCanvas.requestFocus();
+            if (loggingEnabled) GAME_LOGGER.info("Game started: " + currentLevel);
+        }
+    }
+
+    private static void setupLogger() {
+        if (GAME_LOGGER.getHandlers().length == 0) {
+            Handler consoleHandler = new ConsoleHandler();
+            consoleHandler.setFormatter(new SimpleFormatter());
+            GAME_LOGGER.setUseParentHandlers(false);
+            GAME_LOGGER.addHandler(consoleHandler);
+        }
+        GAME_LOGGER.setLevel(loggingEnabled ? Level.INFO : Level.OFF);
     }
 
     @FXML
@@ -283,10 +364,9 @@ public class HelloController implements Initializable {
             String savePath = "saves/" + currentLevel.replace(".json", "_save.json");
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File(savePath), root);
 
-            System.out.println("Progress saved!");
+            GAME_LOGGER.info("Progress saved!");
         } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Error saving progress!");
+            GAME_LOGGER.log(Level.SEVERE, "Error saving progress!", e);
         }
     }
 
@@ -294,7 +374,7 @@ public class HelloController implements Initializable {
         try {
             File saveFile = new File("saves/" + levelName.replace(".json", "_save.json"));
             if (!saveFile.exists()) {
-                System.out.println("No save found for level: " + levelName);
+                GAME_LOGGER.info("No save found for level: " + levelName);
                 return false;
             }
 
@@ -350,11 +430,10 @@ public class HelloController implements Initializable {
                 }
             }
 
-            System.out.println("Progress loaded!");
+            GAME_LOGGER.info("Progress loaded!");
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Error loading progress!");
+            GAME_LOGGER.log(Level.SEVERE, "Error loading progress!", e);
             return false;
         }
     }
@@ -558,31 +637,40 @@ public class HelloController implements Initializable {
         player.setHasBoots("boots".equals(selectedType));
 
         if (player.attackJustStarted()) {
-            Iterator<Enemy> enemyIterator = enemies.iterator();
             double px = player.getX() + player.getWidth() / 2;
             double py = player.getY() + player.getHeight() / 2;
-            double attackRadius = 150;
 
-            while (enemyIterator.hasNext()) {
-                Enemy enemy = enemyIterator.next();
+            for (Enemy enemy : enemies) {
                 double ex = enemy.getX() + enemy.getWidth() / 2;
                 double ey = enemy.getY() + enemy.getHeight() / 2;
                 double dist = Math.hypot(px - ex, py - ey);
-                if (dist <= attackRadius) {
-                    enemyIterator.remove();
+                if (dist <= player.getAttackRadius() && !enemy.isDead()) {
+                    enemy.die();
                 }
             }
         }
         player.resetAttackJustStarted();
 
         player.update(deltaTime, platforms, worldWidth, gameCanvas.getHeight(), System.nanoTime());
+
         long now = System.nanoTime();
-        for (Enemy enemy : enemies) {
-            enemy.update(deltaTime, platforms, now);
-            if (enemy.collidesWith(player)) {
+        Iterator<Enemy> enemyIterator = enemies.iterator();
+        boolean playerKilled = false;
+
+        while (enemyIterator.hasNext()) {
+            Enemy enemy = enemyIterator.next();
+            enemy.update(deltaTime, platforms, player, now);
+
+            // Враг атакует игрока (новая механика)
+            if (enemy.tryAttackPlayer(player)) {
                 hideMenus();
                 restartGame();
                 return;
+            }
+
+            // Удаляем врага только если анимация смерти полностью проиграна
+            if (enemy.shouldBeRemoved()) {
+                enemyIterator.remove();
             }
         }
 
@@ -748,6 +836,10 @@ public class HelloController implements Initializable {
 
     private void loadLevelFromJson(String filename) {
         InputStream is = getClass().getResourceAsStream("/levels/" + filename);
+        if (is == null) {
+            GAME_LOGGER.severe("Level file not found: " + filename);
+            return;
+        }
         JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
 
         platforms.clear();
@@ -810,6 +902,8 @@ public class HelloController implements Initializable {
             double cy = castleObj.get("y").getAsDouble();
             castle = new Castle(cx, cy);
         }
+
+        GAME_LOGGER.info("Loaded level: " + filename);
     }
 
     private List<String> getAllLevelFiles() {
@@ -824,13 +918,15 @@ public class HelloController implements Initializable {
             }
 
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(levelsPath, "*.json")) {
-                return StreamSupport.stream(stream.spliterator(), false)
+                List<String> files = StreamSupport.stream(stream.spliterator(), false)
                         .map(path -> path.getFileName().toString())
                         .sorted()
                         .collect(Collectors.toList());
+                GAME_LOGGER.info("Levels found: " + files);
+                return files;
             }
         } catch (IOException | URISyntaxException e) {
-            e.printStackTrace();
+            GAME_LOGGER.log(Level.SEVERE, "Couldn't get level files", e);
             return List.of("level1.json");
         }
     }
