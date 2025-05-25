@@ -52,7 +52,6 @@ public class Player {
         double drawWidth = width * 2.5;
         double drawHeight = height * 2;
 
-        // --- ИСПРАВЛЕНО: Рисуем только одну анимацию за вызов ---
         if (isAttacking && attackFrames != null && !attackFrames.isEmpty()) {
             currentFrames = attackFrames;
             frameIndex = attackFrameIndex;
@@ -85,7 +84,7 @@ public class Player {
             isIdle = true;
         }
 
-        // --- Обновление кадров анимации ---
+        // Updating of animation frames
         if (!isAttacking) {
             List<Image> currentFrames = isIdle ? idleFrames : runFrames;
             if (!currentFrames.isEmpty() && now - lastFrameTime > frameDuration) {
@@ -118,7 +117,6 @@ public class Player {
         }
 
         if (y > canvasHeight) {
-            System.out.println("Player has fallen!");
             if (!platforms.isEmpty()) {
                 Platform startPlatform = platforms.get(0);
                 x = startPlatform.getX() + 50;
@@ -177,10 +175,8 @@ public class Player {
     }
 
     public void restart(double x, double y) {
-        if (onGround) {
             this.x = x;
             this.y = y;
-        }
     }
 
 
@@ -214,7 +210,7 @@ public class Player {
 
     public void jump() {
         if (onGround) {
-            velocityY = jumpStrength;
+            velocityY = getJumpStrength();
             onGround = false;
         }
     }
@@ -262,6 +258,8 @@ public class Player {
     private double getCurrentMoveSpeed() {
         return hasBoots ? moveSpeed * 1.5 : moveSpeed;
     }
+
+    private double getJumpStrength() {return hasBoots ? jumpStrength * 1.25 : jumpStrength;}
 
     public double getAttackRadius() {return attackRadius;}
 }

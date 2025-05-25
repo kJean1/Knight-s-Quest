@@ -2,8 +2,11 @@ package cz.cvut.fel.pjv.alchemists_quest;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import java.util.logging.*;
 
 public class Castle {
+    public static final Logger GAME_LOGGER = Logger.getLogger("KnightsQuestLogger");
+
     private double x, y;
     private double width = 80, height = 120;
     private Image image;
@@ -14,7 +17,7 @@ public class Castle {
         try {
             image = new Image(getClass().getResourceAsStream("/castle.png"));
         } catch (Exception e) {
-            System.err.println("Не удалось загрузить изображение замка: " + e.getMessage());
+            GAME_LOGGER.severe("I couldn`t get an image of castle!: " + e.getMessage());
         }
     }
 

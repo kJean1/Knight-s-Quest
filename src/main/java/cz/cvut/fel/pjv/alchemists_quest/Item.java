@@ -30,16 +30,11 @@ public class Item {
     }
 
     public void render(GraphicsContext gc, double cameraX) {
-        switch (type)
-        {
-            case "wood":
-                gc.drawImage(woodImage, x - cameraX, y, 30, 30);
-                break;
-            case "stone":
-                gc.drawImage(stoneImage, x - cameraX, y, 60, 60);
-                break;
+        if (type.equals("wood")) {
+            gc.drawImage(woodImage, x - cameraX, y, 30, 30);
+        } else if (type.equals("stone")) {
+            gc.drawImage(stoneImage, x - cameraX, y, 60, 60);
         }
-
     }
 
     public String getType() {
@@ -48,9 +43,7 @@ public class Item {
     public double getX() {
         return x;
     }
-
     public double getY() {
         return y;
     }
 }
-

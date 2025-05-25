@@ -2,8 +2,11 @@ package cz.cvut.fel.pjv.alchemists_quest;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import java.util.logging.*;
 
 public class Bush {
+    public static final Logger GAME_LOGGER = Logger.getLogger("KnightsQuestLogger");
+
     private double x, y;
     private double width = 60, height = 50;
     private boolean hasBerry = true;
@@ -16,7 +19,7 @@ public class Bush {
             bushWithBerries = new Image(Bush.class.getResourceAsStream("/bush_wberries.png"));
             bushWithoutBerries = new Image(Bush.class.getResourceAsStream("/bush_noberries.png"));
         } catch (Exception e) {
-            System.err.println("Error. I can`t get an image of bush! " + e.getMessage());
+            GAME_LOGGER.severe("Error. I can`t get an image of bush! " + e.getMessage());
         }
     }
 

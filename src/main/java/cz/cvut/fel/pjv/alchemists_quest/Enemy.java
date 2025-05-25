@@ -5,8 +5,11 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.*;
 
 public class Enemy {
+    public static final Logger GAME_LOGGER = Logger.getLogger("KnightsQuestLogger");
+    
     private double x, y;
     private final double width, height;
     private double velocityX = 160;
@@ -55,6 +58,9 @@ public class Enemy {
     private double lastJumpTime = 0;
     private double jumpCooldown = 0.2;
 
+    // Attack radius
+    private static final double ATTACK_RADIUS = 100;
+
     public Enemy(double x, double y, double width, double height) {
         this.x = x;
         this.y = y;
@@ -99,7 +105,7 @@ public class Enemy {
         }
     }
 
-    // Поиск платформы для прыжка (по x и y)
+    // Search for Platforms for Jump (by X and Y)
     private Platform findPlatformForJump(List<Platform> platforms, boolean toRight) {
         double searchStart = toRight ? x + width : x;
         double bestDist = Double.MAX_VALUE;
@@ -108,7 +114,7 @@ public class Enemy {
             double px = toRight ? p.getX() : p.getX() + p.getWidth();
             double dx = Math.abs(px - searchStart);
             double dy = p.getY() - (y + height);
-            // Условие на максимальное расстояние по X и по Y, и чтобы платформа впереди
+            // Condition for the maximum distance in X and according to Y, and to make the platform in front
             if (dx > 35 && dx < 270 && Math.abs(dy) < 65) {
                 if ((toRight && px > searchStart) || (!toRight && px < searchStart)) {
                     double dist = Math.hypot(dx, dy);
@@ -122,7 +128,7 @@ public class Enemy {
         return best;
     }
 
-    // Найти платформу, на которой сейчас стоит враг (для патрулирования)
+    // Find the platform on which the enemy is now standing (for patrolling)
     private Platform getStoodPlatform(List<Platform> platforms) {
         for (Platform p : platforms) {
             if (x + width > p.getX() && x < p.getX() + p.getWidth()) {
@@ -138,7 +144,7 @@ public class Enemy {
         if (shouldBeRemoved) return;
 
         if (isDead) {
-            // Анимация смерти
+            // Animation of death
             deadAnimTime += deltaTime;
             if (deadAnimTime >= deadFrameDuration) {
                 deadAnimTime = 0;
@@ -155,19 +161,19 @@ public class Enemy {
         double playerDistX = playerCenterX - enemyCenterX;
         double absDistX = Math.abs(playerDistX);
 
-        // Определяем текущую платформу для патрулирования
+        // Define the current patrol platform
         if (onGround) {
             currentPlatform = getStoodPlatform(platforms);
         }
 
-        // === AI ===
+        // Enemy`s AI
         boolean tryFollowPlayer = false;
         if (absDistX <= 290 && Math.abs(y - player.getY()) < 120) {
             tryFollowPlayer = true;
         }
 
-        // Враг может атаковать, если игрок в увеличенном радиусе атаки
-        if (absDistX <= 160 && Math.abs(y - player.getY()) < 80 && attackCooldown <= 0) {
+        // an enemy can attack if a player in an enlarged radius of attack
+        if (absDistX <= ATTACK_RADIUS && Math.abs(y - player.getY()) < 80 && attackCooldown <= 0) {
             if (!isAttacking) {
                 isAttacking = true;
                 attackAnimTime = 0;
@@ -190,12 +196,12 @@ public class Enemy {
             if (attackCooldown > 0) attackCooldown -= deltaTime;
         }
 
-        // Если враг пытается преследовать игрока и не патрулирует, выбирает направление
+        // If the enemy tries to pursue the player and does not patrol, chooses the direction
         if (tryFollowPlayer && !patrolCurrentPlatform) {
             movingRight = playerDistX > 0;
         }
 
-        // --- Прыжок через пропасть на другую платформу ---
+        // jump through the abyss to another platform
         boolean triedToJump = false;
         if (!isJumping && onGround && !patrolCurrentPlatform && (now - lastJumpTime) > (jumpCooldown * 1_000_000_000L)) {
             double checkX = movingRight ? x + width + velocityX * 0.18 : x - velocityX * 0.18;
@@ -208,7 +214,7 @@ public class Enemy {
                     }
                 }
             }
-            // Если впереди нет земли, ищем платформу для прыжка
+            // If there is no land ahead, we are looking for a jump platform
             if (!groundAhead) {
                 Platform target = findPlatformForJump(platforms, movingRight);
                 if (target != null) {
@@ -226,7 +232,7 @@ public class Enemy {
                         patrolCurrentPlatform = false;
                     }
                 } else {
-                    // Не может прыгнуть — начинает патрулировать свою платформу
+                    // cannot jump - begins to patrol his platform
                     patrolCurrentPlatform = true;
                 }
                 triedToJump = true;
@@ -235,7 +241,7 @@ public class Enemy {
             }
         }
 
-        // === Патрулирование платформы ===
+        // patrol of the platform
         if (patrolCurrentPlatform && currentPlatform != null) {
             if (movingRight && x + width + velocityX * deltaTime > currentPlatform.getX() + currentPlatform.getWidth()) {
                 movingRight = false;
@@ -244,7 +250,7 @@ public class Enemy {
             }
         }
 
-        // --- Гравитация и движение ---
+        // Gravity and movement
         velocityY += gravity * deltaTime;
         double nextY = y + velocityY * deltaTime;
         onGround = false;
@@ -256,7 +262,7 @@ public class Enemy {
             }
         }
 
-        // Движение по X (в прыжке — можно ускорять, если надо)
+        // Movement on x
         double vx = movingRight ? velocityX : -velocityX;
         if (isJumping) {
             double jumpDir = (jumpTargetX - x);
@@ -272,7 +278,7 @@ public class Enemy {
             isJumping = false;
         }
 
-        // --- Анимация прыжка ---
+        // Animation of the jump
         if (isJumping && !jumpFrames.isEmpty()) {
             jumpAnimTime += deltaTime;
             if (jumpAnimTime >= jumpFrameDuration) {
@@ -281,7 +287,7 @@ public class Enemy {
             }
         }
 
-        // Анимация бега (если не атакует/не прыгает)
+        // running animation (if it does not attack/does not jump)
         if (!runFrames.isEmpty() && now - lastFrameTime > frameDuration && !isAttacking && !isJumping) {
             currentFrameIndex = (currentFrameIndex + 1) % runFrames.size();
             lastFrameTime = now;
@@ -307,7 +313,7 @@ public class Enemy {
             double enemyCenter = x + width / 2;
             double playerCenter = player.getX() + player.getWidth() / 2;
             double dist = Math.abs(enemyCenter - playerCenter);
-            if (dist <= 160 && Math.abs(y - player.getY()) < 80) {
+            if (dist <= ATTACK_RADIUS && Math.abs(y - player.getY()) < 80) {
                 return true;
             }
         }

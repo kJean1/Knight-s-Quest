@@ -8,8 +8,11 @@ import javafx.stage.Stage;
 import javafx.application.Platform;
 import java.io.IOException;
 import java.net.URL;
+import java.util.logging.*;
 
 public class HelloApplication extends Application {
+    public static final Logger GAME_LOGGER = Logger.getLogger("KnightsQuestLogger");
+
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -17,7 +20,7 @@ public class HelloApplication extends Application {
         String fxmlFile = "hello-view.fxml";
         URL fxmlUrl = getClass().getResource(fxmlFile);
         if (fxmlUrl == null) {
-            System.err.println("Cannot find FXML file: " + fxmlFile);
+            GAME_LOGGER.info("Cannot find FXML file: " + fxmlFile);
             return;
         }
         FXMLLoader fxmlLoader = new FXMLLoader(fxmlUrl);
@@ -25,7 +28,7 @@ public class HelloApplication extends Application {
 
         Scene scene = new Scene(root);
 
-        stage.setTitle("Alchemist`s Quest");
+        stage.setTitle("Knight`s Quest");
         stage.setScene(scene);
         stage.setResizable(false);
         stage.show();

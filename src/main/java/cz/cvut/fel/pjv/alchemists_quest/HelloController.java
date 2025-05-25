@@ -80,15 +80,17 @@ public class HelloController implements Initializable {
     @FXML
     private ComboBox<String> levelComboBoxPause;
 
-    // --- Main menu fields ---
+    // Main menu fields
     @FXML private VBox mainMenuBox;
     @FXML private Button playButton;
     @FXML private ComboBox<String> levelComboBox;
     @FXML private CheckBox loggingCheckBox;
     @FXML private ImageView logoView;
+    @FXML private Button loadSaveButton;
+    @FXML private ComboBox<String> saveComboBox;
 
-    // --- Logger ---
-    public static final Logger GAME_LOGGER = Logger.getLogger("AlchemistsQuestLogger");
+    // Logger
+    public static final Logger GAME_LOGGER = Logger.getLogger("KnightsQuestLogger");
     public static boolean loggingEnabled = false;
 
     private GraphicsContext gc;
@@ -118,7 +120,7 @@ public class HelloController implements Initializable {
     private double worldWidth = 2500;
     private String currentLevel = "level1.json";
 
-    // Lists for collected items and bushes (by coordinates)
+    // Lists for collected items and bushes
     private final List<Point2D> collectedItemPositions = new ArrayList<>();
     private final List<Point2D> collectedBushPositions = new ArrayList<>();
 
@@ -140,17 +142,17 @@ public class HelloController implements Initializable {
         // --- Main menu logic ---
         if (mainMenuBox != null) {
             // Логотип
-            try {
-                Image logoImg = new Image(getClass().getResource("/logo.png").toExternalForm());
-                logoView.setImage(logoImg);
-            } catch (Exception ignored) {}
+            Image logoImg = new Image(getClass().getResource("/logo.png").toExternalForm());
+            logoView.setImage(logoImg);
+            inventoryBox.setVisible(false);
+            inventoryBox.setManaged(false);
+            gameCanvas.setDisable(true);
+            infoLabel.setVisible(false);
 
-            // Уровни для главного меню
             levels = getAllLevelFiles();
             levelComboBox.getItems().setAll(levels);
             levelComboBox.setValue(levels.contains("level1.json") ? "level1.json" : levels.get(0));
 
-            // Логгер чекбокс
             loggingCheckBox.setSelected(loggingEnabled);
             loggingCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 loggingEnabled = newVal;
@@ -162,11 +164,13 @@ public class HelloController implements Initializable {
                 }
             });
 
-            // Play button
             playButton.setOnAction(e -> showGame());
+
+            // SAVE
+            updateSaveComboBox();
+            loadSaveButton.setOnAction(e -> loadSelectedSave());
         }
 
-        // --- Остальные уровни (для игровых меню) ---
         if (levels == null) levels = getAllLevelFiles();
         levelComboBoxVictory.getItems().setAll(levels);
         levelComboBoxPause.getItems().setAll(levels);
@@ -242,18 +246,19 @@ public class HelloController implements Initializable {
         double canvasHeight = gameCanvas.getHeight();
         player = new Player(100, canvasHeight - PLAYER_HEIGHT - 50, PLAYER_WIDTH, PLAYER_HEIGHT);
 
-        // При старте только меню
         if (mainMenuBox != null && mainMenuBox.isVisible()) {
+            inventoryBox.setVisible(false);
+            inventoryBox.setManaged(false);
             gameCanvas.setDisable(true);
         } else {
-            loadLevelFromJson(currentLevel);
+            inventoryBox.setVisible(true);
+            inventoryBox.setManaged(true);
         }
 
         AnimationTimer gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
                 if (mainMenuBox != null && mainMenuBox.isVisible()) {
-                    // Не запускать игровой цикл, если меню открыто
                     return;
                 }
                 if (paused) {
@@ -281,6 +286,10 @@ public class HelloController implements Initializable {
             mainMenuBox.setVisible(false);
             mainMenuBox.setManaged(false);
             gameCanvas.setDisable(false);
+            inventoryBox.setVisible(true);
+            inventoryBox.setManaged(true);
+            infoLabel.setVisible(true);
+
             String chosenLevel = levelComboBox.getValue();
             if (chosenLevel != null && !chosenLevel.isEmpty()) {
                 currentLevel = chosenLevel;
@@ -289,6 +298,49 @@ public class HelloController implements Initializable {
             gameCanvas.setFocusTraversable(true);
             gameCanvas.requestFocus();
             if (loggingEnabled) GAME_LOGGER.info("Game started: " + currentLevel);
+        }
+    }
+
+    private void loadSelectedSave() {
+        String saveFileName = saveComboBox.getValue();
+        inventoryBox.setVisible(true);
+        inventoryBox.setManaged(true);
+        infoLabel.setVisible(true);
+
+        if (saveFileName == null || saveFileName.isEmpty()) {
+            GAME_LOGGER.warning("No save selected!");
+            return;
+        }
+        String levelFromSave = saveFileName.replace("_save.json", ".json");
+        currentLevel = levelFromSave;
+        boolean loaded = loadProgress(currentLevel);
+        if (loaded) {
+            mainMenuBox.setVisible(false);
+            mainMenuBox.setManaged(false);
+            gameCanvas.setDisable(false);
+            gameCanvas.setFocusTraversable(true);
+            gameCanvas.requestFocus();
+            GAME_LOGGER.info("Loaded save: " + saveFileName);
+        } else {
+            GAME_LOGGER.warning("Save file could not be loaded: " + saveFileName);
+        }
+    }
+
+    private void updateSaveComboBox() {
+        File savesDir = new File("saves");
+        List<String> saves = new ArrayList<>();
+        if (savesDir.exists() && savesDir.isDirectory()) {
+            File[] files = savesDir.listFiles((dir, name) -> name.endsWith("_save.json"));
+            if (files != null) {
+                for (File f : files) {
+                    saves.add(f.getName());
+                }
+            }
+        }
+        saves.sort(Comparator.naturalOrder());
+        saveComboBox.getItems().setAll(saves);
+        if (!saves.isEmpty()) {
+            saveComboBox.setValue(saves.get(0));
         }
     }
 
@@ -327,6 +379,7 @@ public class HelloController implements Initializable {
         alert.setHeaderText(null);
         alert.setContentText("Saved successfully!");
         alert.showAndWait();
+        updateSaveComboBox();
     }
 
     private void saveProgress(String currentLevel, Map<String, Integer> inventory, double playerX, double playerY) {
@@ -438,7 +491,6 @@ public class HelloController implements Initializable {
         }
     }
 
-    // Рендер инвентаря по Map после загрузки сейва
     private void renderFullInventory() {
         for (Node node : inventoryBox.getChildren()) {
             if (node instanceof StackPane slot) {
@@ -548,7 +600,7 @@ public class HelloController implements Initializable {
                 updateInventoryViewAfterRemoval("berry", 2);
                 inventoryItems.put("boots", inventoryItems.getOrDefault("boots", 0) + 1);
                 renderFullInventory();
-                dialogLabel1.setText("You received Boots! Speed increased.");
+                dialogLabel1.setText("You received Boots! Speed and jump strength increased.");
             } else {
                 dialogLabel1.setText("Not enough berries for boots.");
                 shake(tradeBox);
@@ -661,14 +713,12 @@ public class HelloController implements Initializable {
             Enemy enemy = enemyIterator.next();
             enemy.update(deltaTime, platforms, player, now);
 
-            // Враг атакует игрока (новая механика)
             if (enemy.tryAttackPlayer(player)) {
                 hideMenus();
                 restartGame();
                 return;
             }
 
-            // Удаляем врага только если анимация смерти полностью проиграна
             if (enemy.shouldBeRemoved()) {
                 enemyIterator.remove();
             }

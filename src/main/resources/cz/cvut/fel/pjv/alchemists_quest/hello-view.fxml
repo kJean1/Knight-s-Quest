@@ -13,7 +13,7 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.CheckBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+<BorderPane fx:id="rootPane" style="-fx-padding: 0 0 70 0;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="cz.cvut.fel.pjv.alchemists_quest.HelloController"
             prefHeight="650.0" prefWidth="800.0">
     <stylesheets>
@@ -22,7 +22,7 @@
 
     <top>
         <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
-            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, C to Craft, E to interact"/>
+            <Label fx:id="infoLabel" text="Info: Press A/D to move, SPACE to jump, E to interact"/>
         </VBox>
     </top>
 
@@ -33,10 +33,14 @@
             <VBox fx:id="mainMenuBox" alignment="CENTER" spacing="24" style="-fx-background-color: rgba(20,20,20,0.85); -fx-padding: 0 0 0 0;" visible="true" managed="true">
                 <ImageView fx:id="logoView" fitWidth="420" preserveRatio="true"/>
                 <HBox alignment="CENTER" spacing="12">
-                    <Button fx:id="playButton" text="Play"/>
+                    <Button fx:id="playButton" text="Play" styleClass="mainmenu-button"/>
                     <ComboBox fx:id="levelComboBox" prefWidth="150"/>
                 </HBox>
-                <CheckBox fx:id="loggingCheckBox" text="Enable logging"/>
+                <HBox alignment="CENTER" spacing="12">
+                    <Button fx:id="loadSaveButton" text="Load save" styleClass="mainmenu-button"/>
+                    <ComboBox fx:id="saveComboBox" prefWidth="180"/>
+                </HBox>
+                <CheckBox fx:id="loggingCheckBox" text="Enable logging" styleClass="enableLogging"/>
             </VBox>
             <!-- =============== /МЕНЮ ПРИ ЗАПУСКЕ =============== -->
 
@@ -128,7 +132,7 @@
     </center>
 
     <bottom>
-        <HBox fx:id="inventoryBox" spacing="10" alignment="CENTER" prefHeight="60" style="-fx-padding: 5;">
+        <HBox fx:id="inventoryBox" spacing="10" alignment="CENTER">
             <ImageView fitWidth="50" fitHeight="50"/>
             <ImageView fitWidth="50" fitHeight="50"/>
             <ImageView fitWidth="50" fitHeight="50"/>
