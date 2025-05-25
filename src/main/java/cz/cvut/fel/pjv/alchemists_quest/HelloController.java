@@ -1,5 +1,8 @@
 package cz.cvut.fel.pjv.alchemists_quest;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -9,6 +12,7 @@ import javafx.animation.TranslateTransition;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -24,6 +28,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -99,13 +104,17 @@ public class HelloController implements Initializable {
     private double worldWidth = 2500;
     private String currentLevel = "level1.json";
 
+    // Lists for collected items and bushes (by coordinates)
+    private final List<Point2D> collectedItemPositions = new ArrayList<>();
+    private final List<Point2D> collectedBushPositions = new ArrayList<>();
+
     private void shake(Node node) {
         TranslateTransition tt = new TranslateTransition(Duration.millis(70), node);
         tt.setFromX(0);
         tt.setByX(10);
         tt.setCycleCount(6);
         tt.setAutoReverse(true);
-        tt.setOnFinished(e -> node.setTranslateX(0)); // Вернуть на место
+        tt.setOnFinished(e -> node.setTranslateX(0));
         tt.play();
     }
 
@@ -133,7 +142,8 @@ public class HelloController implements Initializable {
                             if (bush.isNear(player.getX(), player.getY(), player.getWidth(), player.getHeight()) && bush.hasBerry()) {
                                 bush.pickBerry();
                                 inventoryItems.put("berry", inventoryItems.getOrDefault("berry", 0) + 1);
-                                updateInventoryView("berry");
+                                collectedBushPositions.add(new Point2D(bush.getX(), bush.getY()));
+                                renderFullInventory();
                                 break;
                             }
                         }
@@ -228,6 +238,163 @@ public class HelloController implements Initializable {
     }
 
     @FXML
+    private void onSaveProgress() {
+        saveProgress(currentLevel, inventoryItems, player.getX(), player.getY());
+    }
+
+    private void saveProgress(String currentLevel, Map<String, Integer> inventory, double playerX, double playerY) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode root = mapper.createObjectNode();
+            root.put("level", currentLevel);
+            root.putPOJO("inventory", inventory);
+
+            ObjectNode position = mapper.createObjectNode();
+            position.put("x", playerX);
+            position.put("y", playerY);
+            root.set("playerPosition", position);
+
+            ArrayList<ObjectNode> collectedItemsArr = new ArrayList<>();
+            for (Point2D pt : collectedItemPositions) {
+                ObjectNode node = mapper.createObjectNode();
+                node.put("x", pt.getX());
+                node.put("y", pt.getY());
+                collectedItemsArr.add(node);
+            }
+            root.putPOJO("collectedItems", collectedItemsArr);
+
+            ArrayList<ObjectNode> collectedBushesArr = new ArrayList<>();
+            for (Point2D pt : collectedBushPositions) {
+                ObjectNode node = mapper.createObjectNode();
+                node.put("x", pt.getX());
+                node.put("y", pt.getY());
+                collectedBushesArr.add(node);
+            }
+            root.putPOJO("collectedBushes", collectedBushesArr);
+
+            File dir = new File("saves");
+            if (!dir.exists()) dir.mkdirs();
+            String savePath = "saves/" + currentLevel.replace(".json", "_save.json");
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(savePath), root);
+
+            System.out.println("Progress saved!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error saving progress!");
+        }
+    }
+
+    private boolean loadProgress(String levelName) {
+        try {
+            File saveFile = new File("saves/" + levelName.replace(".json", "_save.json"));
+            if (!saveFile.exists()) {
+                System.out.println("No save found for level: " + levelName);
+                return false;
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(saveFile);
+
+            String savedLevelName = root.get("level").asText();
+
+            loadLevelFromJson(savedLevelName);
+            currentLevel = savedLevelName;
+
+            JsonNode invNode = root.get("inventory");
+            inventoryItems.clear();
+            Iterator<Map.Entry<String, JsonNode>> fields = invNode.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                int value = entry.getValue().asInt();
+                if (value > 0) {
+                    inventoryItems.put(entry.getKey(), value);
+                }
+            }
+            renderFullInventory();
+
+            JsonNode pos = root.get("playerPosition");
+            double x = pos.get("x").asDouble();
+            double y = pos.get("y").asDouble();
+            player.restart(x, y);
+
+            collectedItemPositions.clear();
+            collectedBushPositions.clear();
+
+            if (root.has("collectedItems")) {
+                for (JsonNode node : root.get("collectedItems")) {
+                    double ix = node.get("x").asDouble();
+                    double iy = node.get("y").asDouble();
+                    Point2D pt = new Point2D(ix, iy);
+                    collectedItemPositions.add(pt);
+                    items.removeIf(item -> Math.abs(item.getX() - ix) < 0.01 && Math.abs(item.getY() - iy) < 0.01);
+                }
+            }
+
+            if (root.has("collectedBushes")) {
+                for (JsonNode node : root.get("collectedBushes")) {
+                    double bx = node.get("x").asDouble();
+                    double by = node.get("y").asDouble();
+                    Point2D pt = new Point2D(bx, by);
+                    collectedBushPositions.add(pt);
+                    for (Bush bush : bushes) {
+                        if (Math.abs(bush.getX() - bx) < 0.01 && Math.abs(bush.getY() - by) < 0.01) {
+                            bush.pickBerry();
+                        }
+                    }
+                }
+            }
+
+            System.out.println("Progress loaded!");
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error loading progress!");
+            return false;
+        }
+    }
+
+    // Рендер инвентаря по Map после загрузки сейва
+    private void renderFullInventory() {
+        for (Node node : inventoryBox.getChildren()) {
+            if (node instanceof StackPane slot) {
+                ImageView imageView = (ImageView) slot.getChildren().get(0);
+                Label countLabel = (Label) slot.getChildren().get(1);
+                imageView.setImage(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
+                slot.setUserData("empty");
+                countLabel.setVisible(false);
+                countLabel.setText("");
+            }
+        }
+        int slotIdx = 0;
+        for (Map.Entry<String, Integer> entry : inventoryItems.entrySet()) {
+            String type = entry.getKey();
+            int count = entry.getValue();
+            if (count > 0 && slotIdx < inventoryBox.getChildren().size()) {
+                StackPane slot = (StackPane) inventoryBox.getChildren().get(slotIdx);
+                ImageView imageView = (ImageView) slot.getChildren().get(0);
+                Label countLabel = (Label) slot.getChildren().get(1);
+
+                Image image = null;
+                switch (type) {
+                    case "wood": image = new Image(getClass().getResource("/wood.png").toExternalForm()); break;
+                    case "stone": image = new Image(getClass().getResource("/stone.png").toExternalForm()); break;
+                    case "berry": image = new Image(getClass().getResource("/berry.png").toExternalForm()); break;
+                    case "boots": image = new Image(getClass().getResource("/boots.png").toExternalForm()); break;
+                    case "sword": image = new Image(getClass().getResource("/sword.png").toExternalForm()); break;
+                }
+                if (image != null) {
+                    imageView.setImage(image);
+                    slot.setUserData(type);
+                    countLabel.setText(String.valueOf(count));
+                    countLabel.setVisible(true);
+                }
+                slotIdx++;
+            }
+        }
+        updateInventorySelection();
+    }
+
+    @FXML
     private void onSelectLevel(ActionEvent event) {
         Object source = event.getSource();
         String selectedLevel = null;
@@ -242,7 +409,10 @@ public class HelloController implements Initializable {
 
         if (selectedLevel != null && !selectedLevel.equals(currentLevel)) {
             currentLevel = selectedLevel;
-            restartGame();
+            boolean loaded = loadProgress(currentLevel);
+            if (!loaded) {
+                restartGame();
+            }
         }
         hideMenus();
     }
@@ -292,7 +462,7 @@ public class HelloController implements Initializable {
                 inventoryItems.put("berry", berryCount - 2);
                 updateInventoryViewAfterRemoval("berry", 2);
                 inventoryItems.put("boots", inventoryItems.getOrDefault("boots", 0) + 1);
-                updateInventoryView("boots");
+                renderFullInventory();
                 dialogLabel1.setText("You received Boots! Speed increased.");
             } else {
                 dialogLabel1.setText("Not enough berries for boots.");
@@ -303,11 +473,9 @@ public class HelloController implements Initializable {
             int woodCount = inventoryItems.getOrDefault("wood", 0);
             if (stoneCount >= 1 && woodCount >= 1) {
                 inventoryItems.put("stone", stoneCount - 1);
-                updateInventoryViewAfterRemoval("stone", 1);
                 inventoryItems.put("wood", woodCount - 1);
-                updateInventoryViewAfterRemoval("wood", 1);
                 inventoryItems.put("sword", inventoryItems.getOrDefault("sword", 0) + 1);
-                updateInventoryView("sword");
+                renderFullInventory();
                 dialogLabel1.setText("You received a Sword!");
             } else {
                 dialogLabel1.setText("Not enough resources for sword.");
@@ -317,23 +485,7 @@ public class HelloController implements Initializable {
     }
 
     private void updateInventoryViewAfterRemoval(String itemType, int amount) {
-        for (Node node : inventoryBox.getChildren()) {
-            if (node instanceof StackPane slot && slot.getUserData().equals(itemType)) {
-                Label countLabel = (Label) slot.getChildren().get(1);
-                int currentCount = Integer.parseInt(countLabel.getText());
-                currentCount -= amount;
-                if (currentCount <= 0) {
-                    ImageView imageView = (ImageView) slot.getChildren().get(0);
-                    imageView.setImage(new Image(getClass().getResource("/empty_slot.png").toExternalForm()));
-                    slot.setUserData("empty");
-                    countLabel.setVisible(false);
-                    countLabel.setText("");
-                } else {
-                    countLabel.setText(String.valueOf(currentCount));
-                }
-                break;
-            }
-        }
+        renderFullInventory();
     }
 
     private void initializeInventory() {
@@ -411,7 +563,7 @@ public class HelloController implements Initializable {
                 double ey = enemy.getY() + enemy.getHeight() / 2;
                 double dist = Math.hypot(px - ex, py - ey);
                 if (dist <= attackRadius) {
-                    enemyIterator.remove(); // убиваем врага
+                    enemyIterator.remove();
                 }
             }
         }
@@ -437,26 +589,24 @@ public class HelloController implements Initializable {
             Item item = iterator.next();
             if (item.intersects(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
                 inventoryItems.put(item.getType(), inventoryItems.getOrDefault(item.getType(), 0) + 1);
-                updateInventoryView(item.getType());
+                collectedItemPositions.add(new Point2D(item.getX(), item.getY()));
+                renderFullInventory();
                 iterator.remove();
             }
         }
 
-        // Победа
         if (castle != null && castle.intersects(player)) {
             gameWon = true;
             showVictoryMenu();
             return;
         }
 
-        // Падение в пропасть
         if (player.getY() > gameCanvas.getHeight() + 100) {
             hideMenus();
             restartGame();
             return;
         }
 
-        // Диалоги и кусты
         if (showDialog) {
             boolean stillNearNPC = false;
             for (NPC npc : npcs) {
@@ -469,7 +619,8 @@ public class HelloController implements Initializable {
                 if (bush.hasBerry() && bush.intersects(player.getX(), player.getY(), player.getWidth(), player.getHeight())) {
                     bush.pickBerry();
                     inventoryItems.put("berry", inventoryItems.getOrDefault("berry", 0) + 1);
-                    updateInventoryView("berry");
+                    collectedBushPositions.add(new Point2D(bush.getX(), bush.getY()));
+                    renderFullInventory();
                     break;
                 }
             }
@@ -502,6 +653,8 @@ public class HelloController implements Initializable {
         gameWon = false;
         infoLabel.setText("Info: Press A/D to move, SPACE to jump, C to Craft, E to interact");
         inventoryItems.clear();
+        collectedItemPositions.clear();
+        collectedBushPositions.clear();
         initializeInventory();
         loadLevelFromJson(currentLevel);
         double canvasHeight = gameCanvas.getHeight();
@@ -589,7 +742,6 @@ public class HelloController implements Initializable {
 
     private void loadLevelFromJson(String filename) {
         InputStream is = getClass().getResourceAsStream("/levels/" + filename);
-
         JsonObject json = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
 
         platforms.clear();
@@ -653,20 +805,18 @@ public class HelloController implements Initializable {
             castle = new Castle(cx, cy);
         }
     }
+
     private List<String> getAllLevelFiles() {
         try {
-            // Путь к папке с уровнями в ресурсах
             URI uri = getClass().getResource("/levels/").toURI();
             Path levelsPath;
             if (uri.getScheme().equals("jar")) {
-                // Если в jar, используем FileSystem
                 FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
                 levelsPath = fs.getPath("/levels/");
             } else {
                 levelsPath = Paths.get(uri);
             }
 
-            // Получаем все .json файлы
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(levelsPath, "*.json")) {
                 return StreamSupport.stream(stream.spliterator(), false)
                         .map(path -> path.getFileName().toString())

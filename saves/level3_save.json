@@ -1,0 +1,24 @@
+{
+  "level" : "level3.json",
+  "inventory" : {
+    "sword" : 1,
+    "berry" : 1,
+    "wood" : 0,
+    "stone" : 0
+  },
+  "playerPosition" : {
+    "x" : 900.2306000000004,
+    "y" : 260.0
+  },
+  "collectedItems" : [ {
+    "x" : 480.0,
+    "y" : 380.0
+  }, {
+    "x" : 950.0,
+    "y" : 290.0
+  } ],
+  "collectedBushes" : [ {
+    "x" : 650.0,
+    "y" : 290.0
+  } ]
+}

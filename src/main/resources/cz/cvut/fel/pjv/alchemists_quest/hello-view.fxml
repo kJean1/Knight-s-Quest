@@ -107,6 +107,7 @@
                 <Button fx:id="resumeButton" text="Resume" onAction="#onResume" styleClass="pause-button"/>
                 <Button fx:id="restartLevelButtonPause" text="Restart" onAction="#onRestartLevel" styleClass="pause-button"/>
                 <Button fx:id="selectLevelButtonPause" text="Select Level" onAction="#onSelectLevel" styleClass="pause-button"/>
+                <Button fx:id="saveProgressButton" text="Save progress" onAction="#onSaveProgress" styleClass="pause-button"/>
                 <ComboBox fx:id="levelComboBoxPause" styleClass="combo-box"/>
             </VBox>
         </StackPane>
